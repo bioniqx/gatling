@@ -1,0 +1,25 @@
+# ============================================================================
+# Silk Road Caravans — Game-specific SLA Override
+# ============================================================================
+#
+# Per-game override. File này CHỈ list field cần ghi đè cho game Silk Road.
+# Field thiếu sẽ tự fall back lên `config/sla-thresholds.yml` ở repo root.
+#
+# Để xoá tất cả override → delete file này. Game sẽ dùng core defaults.
+#
+# Loader precedence (top wins, merge field-by-field):
+#   -DslaConfig=<path>                                          (full override)
+#   games/silkroad/src/gatling/resources/sla-thresholds.yml     ← THIS FILE
+#   config/sla-thresholds.yml                                   (core source of truth)
+#   classpath:sla-thresholds.yml                                (bundled fallback)
+#   SlaConfig.defaults()                                        (hardcoded base)
+# ============================================================================
+
+sla:
+  # Silk Road có state ít, mean response thường < 200ms → strict hơn core (500ms).
+  # Đổi số này → save → chạy lại test. Không cần recompile.
+  pr4_mean_response_ms_max: 300
+
+# pr5_error_percent_max, max_duration_buffer_min → inherited từ core
+# crash → inherited từ core
+# variants → inherited từ core (cpu/mem ceiling theo variant target=70/80, ...)

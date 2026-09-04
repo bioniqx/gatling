@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'rgp-game-load-test'
+
+include ':core'
+include ':games:silkroad'
+include ':games:bonanza'
+include ':games:naga777'
+
+// To enable another game, drop its directory under games/<name>/ and uncomment here.
+// include ':games:fruit-respin-mania'
+// include ':games:nagas-treasure'
+// include ':games:apsara-paradise'
+// include ':games:last-guardian-angkor'

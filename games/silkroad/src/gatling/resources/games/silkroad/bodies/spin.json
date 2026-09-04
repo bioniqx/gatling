@@ -1,0 +1,8 @@
+{
+  "userId": "#{userId}",
+  "gameId": "silk_road_usecase",
+  "betAmount": 1.0,
+  "isBuyFeature": false,
+  "isCheatJackpot": false,
+  "freeGameSplittingSymbol": "A"
+}

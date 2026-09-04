@@ -1,0 +1,98 @@
+// Game-agnostic infrastructure shared by every :games:<name> subproject.
+//
+// Why java-library: simulation bases + scenario template are extended by game-specific
+// subclasses. `api` exposes Gatling DSL types transitively so games don't re-declare them.
+
+plugins {
+    id 'java-library'
+    id 'com.google.protobuf' version "${protobufPluginVersion}"
+}
+
+dependencies {
+    api "io.gatling.highcharts:gatling-charts-highcharts:${gatlingVersion}"
+    api "io.gatling:gatling-grpc-java:${gatlingVersion}"
+
+    api "io.grpc:grpc-protobuf:${grpcVersion}"
+    api "io.grpc:grpc-stub:${grpcVersion}"
+    api "com.google.protobuf:protobuf-java:${protobufVersion}"
+
+    // SLA thresholds + variant ceilings loaded from config/sla-thresholds.yml
+    api 'org.yaml:snakeyaml:2.2'
+
+    // grpc-java requires javax.annotation.Generated at compile time
+    compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
+
+    // GaaS JAR — proprietary MessagePack codec used by the gRPC simulations.
+    // Loaded after bytecode downgrade (see `downgradeGaasJar` below); `api` so game modules can
+    // reference `com.rgp.loadtest.core.protocol.Codec` without redeclaring the underlying deps.
+    api fileTree(dir: 'build/libs-jdk17', include: ['*.jar'])
+    api 'org.msgpack:msgpack-core:0.9.8'
+    api 'org.msgpack:msgpack:0.6.12'
+    api 'net.minidev:json-smart:2.5.0'
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${protobufVersion}"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+        }
+    }
+    generateProtoTasks {
+        all().configureEach { task ->
+            task.plugins {
+                grpc {}
+            }
+        }
+    }
+}
+
+// libs/common-data-1.0.0.jar ships as Java 21 bytecode (class-file v65) but uses no Java 18+
+// runtime APIs. Rewrite every .class entry's major-version bytes from 65 → 61 (Java 17) so the
+// JDK 17 toolchain can load it. Output: build/libs-jdk17/. The fileTree dep above picks up the
+// downgraded JAR; every compile/proto task depends on this rewrite finishing first.
+tasks.register('downgradeGaasJar') {
+    description = 'Rewrite GaaS JAR class-file versions from Java 21 (65) to Java 17 (61).'
+    group = 'build'
+
+    def inputJar  = file('libs/common-data-1.0.0.jar')
+    def outputDir = layout.buildDirectory.dir('libs-jdk17').get().asFile
+    def outputJar = new File(outputDir, inputJar.name)
+
+    inputs.file(inputJar)
+    outputs.file(outputJar)
+
+    doLast {
+        outputDir.mkdirs()
+        new java.util.jar.JarInputStream(new java.io.FileInputStream(inputJar)).withCloseable { jarIn ->
+            new java.util.jar.JarOutputStream(new java.io.FileOutputStream(outputJar)).withCloseable { jarOut ->
+                def entry
+                while ((entry = jarIn.nextEntry) != null) {
+                    def buf = new java.io.ByteArrayOutputStream()
+                    buf << jarIn
+                    def bytes = buf.toByteArray()
+                    if (entry.name.endsWith('.class') && bytes.length >= 8
+                            && bytes[0] == (byte) 0xCA && bytes[1] == (byte) 0xFE
+                            && bytes[2] == (byte) 0xBA && bytes[3] == (byte) 0xBE) {
+                        int major = ((bytes[6] & 0xFF) << 8) | (bytes[7] & 0xFF)
+                        if (major > 61) {
+                            bytes[6] = 0
+                            bytes[7] = 61
+                        }
+                    }
+                    jarOut.putNextEntry(new java.util.jar.JarEntry(entry.name))
+                    jarOut.write(bytes)
+                    jarOut.closeEntry()
+                }
+            }
+        }
+    }
+}
+
+tasks.matching {
+    it.name.startsWith('compile') ||
+            it.name.startsWith('extract') ||
+            it.name.startsWith('generate')
+}.configureEach { dependsOn 'downgradeGaasJar' }

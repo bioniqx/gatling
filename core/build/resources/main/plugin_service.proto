@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+// Wire path: /PluginService/... (no package prefix — must match be-wsproxy contract)
+
+option java_package = "com.rgp.loadtest.grpc";
+option java_outer_classname = "PluginServiceProto";
+option java_multiple_files = true;
+
+service PluginService {
+  rpc ConnectAndCall (ConnectAndCallRequest) returns (ZmqResponse);
+  rpc Call (PluginRequest) returns (PluginResponse);
+  rpc Disconnect (DisconnectRequest) returns (ZmqResponse);
+  rpc DisconnectBatch (DisconnectBatchRequest) returns (ZmqResponse);
+  rpc FindSessionsToRemove (SyncSessionsRequest) returns (SyncSessionsResponse);
+  rpc CallBatchInternally (BatchPluginRequest) returns (BatchPluginResponse);
+  rpc SyncSessions (SyncSessionsRequest) returns (ZmqResponse);
+  rpc FetchConnectCommands (FetchConnectCommandsRequest) returns (FetchConnectCommandsResponse);
+  rpc Interop (InteropRequest) returns (InteropResponse);
+}
+
+message FetchConnectCommandsRequest {
+  string zone = 1;
+  repeated string pluginNames = 2;
+}
+
+message FetchConnectCommandsResponse {
+  repeated PluginInfo plugins = 1;
+}
+
+message PluginInfo {
+  string pluginName = 1;
+  repeated int32 joinCommands = 2;
+}
+
+message SyncSessionsRequest {
+  string zone = 1;
+  repeated SyncSession sessions = 2;
+  string wsProxyId = 3;
+}
+
+message SyncSessionsResponse {
+  repeated SyncSession sessions = 1;
+}
+
+message SyncSession {
+  string sessionId = 1;
+}
+
+message PluginUser {
+  string id = 1;
+  string username = 2;
+  string sessionId = 3;
+  string ip = 4;
+  bytes  parameters = 5;
+}
+
+message ConnectAndCallRequest {
+  string     zone = 1;
+  PluginUser user = 2;
+  string     pluginName = 3;
+  bytes      data = 4;
+}
+
+message PluginRequest {
+  string zone = 1;
+  string pluginName = 2;
+  string username = 3;
+  bytes  data = 4;
+}
+
+message PluginResponse {
+  bytes result = 1;
+}
+
+message BatchPluginRequest {
+  repeated PluginRequest requests = 1;
+}
+
+message BatchPluginResponse {
+  repeated PluginResponse responses = 1;
+}
+
+enum InteropType {
+  INTEROP = 0;
+  INTERNAL_INTEROP = 1;
+}
+
+message InteropRequest {
+  string zoneName = 1;
+  string pluginName = 2;
+  bytes params = 3;
+  InteropType interopType = 4;
+}
+
+message InteropResponse {
+  bool success = 1;
+}
+
+message ZmqMetadata {
+  repeated string topics = 1;
+}
+
+message ZmqResponse {
+  ZmqMetadata metadata = 1;
+}
+
+message DisconnectBatchRequest {
+  repeated DisconnectRequest requests = 1;
+}
+
+message DisconnectRequest {
+  string zone = 1;
+  string username = 2;
+  string sessionId = 3;
+}

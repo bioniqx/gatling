@@ -1,0 +1,62 @@
+// Naga's Fortune 777 load test — gRPC-only (game không có REST spin endpoint).
+//
+// Simulation Scala dùng Gatling 3.15 first-party Java DSL (io.gatling.javaapi.grpc),
+// cùng pattern với games/bonanza. Proto stub + MessagePack Codec tái dùng từ :core.
+//
+// Run examples (from repo root) — cần backend NAGAS 777 chạy local (docker compose):
+//   ./gradlew :games:naga777:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 \
+//                                 -DrequestRate=0 -DeventCount=5
+//   ./gradlew :games:naga777:grpc -Dusers=1000 -DdurationMinutes=60 \
+//                                 -DgrpcHost=localhost -DgrpcPort=9096
+
+plugins {
+    id 'java'
+    id 'scala'
+    id 'io.gatling.gradle' version "${gatlingGradleVersion}"
+}
+
+dependencies {
+    gatlingImplementation project(':core')
+
+    // Scala runtime để compile + load simulation Scala trong Gatling fork.
+    gatlingImplementation "org.scala-lang:scala-library:2.13.12"
+}
+
+gatling {
+    jvmArgs = [
+        '-server',
+        '-Xmx2G',
+        '--add-opens=java.base/java.lang=ALL-UNNAMED',
+        '--add-opens=java.base/java.util=ALL-UNNAMED',
+        '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+    ]
+}
+
+// -D… system properties Gatling simulations read at runtime. They aren't forwarded automatically
+// from the Gradle JVM to the gatlingRun fork, so we plumb them through explicitly.
+def FORWARDED_PROPS = [
+    'users', 'durationMinutes', 'rampMinutes', 'host', 'port', 'paceSec',
+    'requestRate', 'eventCount', 'grpcHost', 'grpcPort', 'coinValue', 'coinPerLine',
+]
+
+def SIMULATIONS = [
+    grpc: 'com.rgp.loadtest.naga777.grpc.Naga777GrpcSimulation',
+]
+
+SIMULATIONS.each { alias, fqcn ->
+    tasks.register(alias, io.gatling.gradle.GatlingRunTask) {
+        group = 'gatling'
+        description = "Run ${alias} simulation (${fqcn})"
+        simulationClassName = fqcn
+        // Load tests always run — no input fingerprint can reliably detect "same SUT state"
+        outputs.upToDateWhen { false }
+        // gameName lets SlaConfigLoader find this game's per-game SLA override at
+        // games/<gameName>/src/gatling/resources/sla-thresholds.yml.
+        def fwd = ['gameName': project.name]
+        FORWARDED_PROPS.each { name ->
+            def v = System.getProperty(name)
+            if (v != null) fwd[name] = v
+        }
+        systemProperties = fwd
+    }
+}

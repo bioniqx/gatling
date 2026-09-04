@@ -1,0 +1,63 @@
+// Root build — shared config for all subprojects (:core + :games:*).
+// Each game subproject has its own build.gradle under games/<name>/.
+
+allprojects {
+    group = 'com.rgp'
+    version = '1.0.0-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+ext {
+    gatlingVersion = '3.15.0'
+    gatlingGradleVersion = '3.15.0.2'
+    grpcVersion = '1.75.0'
+    protobufVersion = '4.32.1'
+    protobufPluginVersion = '0.9.5'
+    javaTargetVersion = JavaLanguageVersion.of(17)
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        toolchain {
+            languageVersion = rootProject.ext.javaTargetVersion
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+}
+
+// Variant-gated verifier — Java port of scripts/verify-thresholds.py.
+// Reads -D… props (resourceCsv/healthCsv/variant/users/durationSec/gatlingLog/gatlingExit/httpKoCeil)
+// and forwards them to the forked JVM. Exit code: 0=PASS, 1=FAIL.
+def VERIFY_PROPS = [
+        'resourceCsv', 'healthCsv', 'variant', 'users', 'durationSec',
+        'gatlingLog', 'gatlingExit', 'httpKoCeil', 'meanMsCeil', 'slaConfig',
+        'gameName', 'contextPath',
+]
+
+tasks.register('verifyVariant', JavaExec) {
+    group = 'verification'
+    description = 'Verify CPU/Mem/crash thresholds for a load-test variant (writes verdict to stdout, exits 1 on FAIL)'
+    dependsOn ':core:classes'
+    classpath = project(':core').sourceSets.main.runtimeClasspath
+    mainClass = 'com.rgp.loadtest.core.verify.ThresholdVerifier'
+    // Caller passes via -D… on the Gradle CLI; forward each one to the fork.
+    doFirst {
+        VERIFY_PROPS.each { name ->
+            def v = System.getProperty(name)
+            if (v != null) systemProperty(name, v)
+        }
+    }
+    // Always rerun — verdict depends on CSV state, not task inputs Gradle can track.
+    outputs.upToDateWhen { false }
+    // Let our Java code surface its own exit code; the wrapper script captures it.
+    ignoreExitValue = true
+}

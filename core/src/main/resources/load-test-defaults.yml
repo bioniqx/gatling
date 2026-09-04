@@ -1,0 +1,29 @@
+# ============================================================================
+# Load Test Runtime Defaults — Core (cross-game)
+# ============================================================================
+#
+# Default cho mọi game khi không có override. Per-game override sống ở:
+#   games/<game>/src/gatling/resources/game.yml
+#
+# Thứ tự ưu tiên (cao → thấp):
+#   1. -D<key>=...                              (CLI override)
+#   2. games/<game>/src/gatling/resources/game.yml   (per-game)
+#   3. config/load-test-defaults.yml            (repo override — file này nếu copy ra root)
+#   4. classpath:load-test-defaults.yml         (file này — bundled trong core JAR)
+#   5. Hardcoded fallback trong LoadTestConfigLoader
+#
+# Sửa số → save → chạy lại test. Không cần recompile.
+# ============================================================================
+
+http:
+  host: localhost
+  port: 3000
+  contextPath: ""
+
+load:
+  users: 1000
+  requests: 10000
+  durationMinutes: 60
+  rampMinutes: 5
+  thinkTimeMin: 1
+  thinkTimeMax: 3
