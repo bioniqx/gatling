@@ -1,5 +1,15 @@
 # Design — Thêm game NAGAS 777 vào rgp-game-load-test
 
+> **Cập nhật 2026-09-04 — journey đã bỏ bước RegisterSession.**
+> Backend `Stable_NAGAS_777` đã đổi package sang `yama.game.nagafortune.*` và gỡ hẳn
+> `DebugController`: REST surface hiện chỉ còn `/health` + `/health/detail`, debug ops
+> chuyển sang gRPC cmd 1900 (`SESSION_REGISTER`), mà cmd 1900 không nằm trong
+> `PUBLIC_COMMANDS` nên phải Connect trước — không dùng để seed session được.
+> Journey vì vậy thuần gRPC: Join (cmd 1005) → Spin loop (cmd 1500). `ConnectHandler`
+> miss session Redis thì fallback sang `user.parameters` (agency/username) rồi vẫn
+> đăng ký TokenRegistry, balance đến từ MockWalletAdapter. Mọi mô tả về
+> `POST /api/v1/debug/session/register` bên dưới là lịch sử, không còn đúng.
+
 **Ngày:** 2026-07-23
 **Nguồn khảo sát:** `/Users/yamazaki-ethan/Documents/Projects/Stable_NAGAS_777`
 **Quyết định đã chốt:** load test qua gRPC trực tiếp · kịch bản Connect + Spin loop · simulation viết bằng Scala theo pattern bonanza (PA2)

@@ -165,6 +165,8 @@ A green **PASS** banner = the test cleared every threshold. Done.
 >
 > **Stress / Spike ramp shape isn't tunable through the wrapper** — only `--users / --duration / --ramp` are forwarded. For `usersStart / usersEnd / baseline / spike`, use [Advanced runs](#advanced-runs-without-the-wrapper).
 >
+> **`Grpc` runs on a different Gatling runtime than the REST simulations** (3.9.5 + the community gRPC plugin, no VU cap) — see [gRPC runtimes](#grpc-runtimes).
+>
 > **`Grpc` defaults differ:** `rampMinutes=2` (not 5), `paceSec=5`, `requestRate=50` req/s floor, `eventCount=100000` successful-request floor. Defaults to `grpcHost=localhost`; `grpcPort=9091` (bonanza) / `9096` (naga777). The wrapper doesn't expose `--grpc-host` / `--grpc-port` — if you need to override the gRPC endpoint, [run via Gradle directly](#advanced-runs-without-the-wrapper).
 
 ### Standard examples
@@ -462,13 +464,47 @@ Pinned in `build.gradle` at the repo root.
 | Component                | Version    | Where it's used                                                                 |
 |--------------------------|------------|---------------------------------------------------------------------------------|
 | Java                     | **17**     | Every simulation + the `:core` library.                                         |
-| Gatling                  | **3.15.0** | All simulations (HTTP + gRPC).                                                  |
-| Gatling Gradle plugin    | 3.15.0.2   | Test-run wiring per game (`io.gatling.gradle`).                                 |
+| Gatling (REST sims)      | **3.15.0** | silkroad, and bonanza's `Soak` / `Basic`.                                       |
+| Gatling Gradle plugin    | 3.15.0.2   | REST test-run wiring (`io.gatling.gradle`) — the gRPC sims don't use it.        |
 | Gradle wrapper           | 9.2.1      | Bundled — no separate install.                                                  |
 | Scala library            | **2.13.12** | Only by the bonanza & naga777 gRPC simulations — see [Scala / gRPC](#scala--grpc-simulation). |
-| Gatling gRPC DSL         | 3.15.0     | Only by the bonanza & naga777 gRPC simulations.                                  |
+| Gatling (gRPC sims)      | **3.9.5**  | bonanza `Grpc` + naga777 `Grpc` — see [gRPC runtimes](#grpc-runtimes).           |
+| gRPC DSL                 | `com.github.phisgr:gatling-grpc` 0.17.0 | Community plugin, no VU cap. Replaced Gatling's Enterprise-gated gRPC DSL. |
 | gRPC core / Protobuf     | 1.75.0 / 4.32.1 | Generated stubs in `:core` (used only by the gRPC sim).                    |
 | Python                   | 3.9+       | `generate-summary-html.py` (post-run report).                                   |
+
+### gRPC runtimes
+
+Both gRPC simulations run on **Gatling 3.9.5** with the community plugin
+`com.github.phisgr:gatling-grpc` — not on the Gatling 3.15 used by the REST simulations.
+
+The reason is a hard limit. Gatling 3.15's first-party gRPC DSL (`io.gatling:gatling-grpc-java`)
+is a Gatling Enterprise feature; without a licence it runs in trial mode and **aborts the
+simulation above 5 concurrent VUs or 5 minutes**. At 10 VUs the run dies within seconds with
+`Some of the simulations crashed`, never reaching user #6 — so the 1000-VU production gate
+documented above was impossible for either gRPC game.
+
+The community plugin is Apache 2.0 and has no cap, but its last release (0.17.0) targets Gatling
+3.9.5, and the matching `io.gatling.gradle` 3.9.5.x fails on Gradle 9
+(`unknown property 'reportsDir'`). So the gRPC simulations skip the Gatling Gradle plugin
+entirely: each builds its own Gatling 3.9.5 classpath in a dedicated configuration and launches
+`io.gatling.app.Gatling` through a plain `JavaExec` task.
+
+- **naga777** is gRPC-only, so its whole module is on 3.9.5 (`gatlingRt` configuration).
+- **bonanza** ships both, so it is split: `src/gatling/java` (REST) stays on 3.15 under the
+  Gatling Gradle plugin, while `src/gatlingGrpc/scala` compiles and runs against 3.9.5
+  (`gatlingGrpcRt` configuration). The two classpaths never mix.
+- **silkroad** is REST-only and untouched — Gatling's HTTP DSL is fully OSS and uncapped, so
+  there is no reason to move it.
+
+Everything downstream works unchanged: the wrapper, the threshold verifier, `summary.html`.
+Because Gatling 3.9 prints its console summary as
+`> request count  640 (OK=640  KO=0 )` instead of the pipe-delimited table 3.15 uses, the
+threshold verifier parses both shapes.
+
+**Caveat:** the community plugin is **archived upstream** (last commit Feb 2024) and will never
+support Gatling 3.10+. If the REST simulations are ever moved to a newer Gatling, the gRPC ones
+stay behind on 3.9.5 unless someone forks the plugin or buys an Enterprise licence.
 
 ### Directory tree
 

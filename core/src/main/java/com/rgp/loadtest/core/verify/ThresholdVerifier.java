@@ -291,6 +291,18 @@ public final class ThresholdVerifier {
     if (total >= 0 && ok >= 0 && ko < 0) ko = total - ok;
 
     if (total < 0) {
+      // naga777 runs on Gatling 3.9 (community gRPC plugin — see games/naga777/build.gradle),
+      // which prints the summary as "> request count  640 (OK=640  KO=0 )" instead of the
+      // pipe-delimited table, and omits the "(ms)" suffix on the response-time labels.
+      total = parseLegacyStat(content, "request count", 0);
+      ok = parseLegacyStat(content, "request count", 1);
+      ko = parseLegacyStat(content, "request count", 2);
+      mean = parseLegacyStat(content, "mean response time", 0);
+      p95 = parseLegacyStat(content, "response time 95th percentile", 0);
+      if (total >= 0 && ok >= 0 && ko < 0) ko = total - ok;
+    }
+
+    if (total < 0) {
       // Fall back to the rolling "> Global | total | OK | KO" line (no mean available).
       Pattern p =
           Pattern.compile(
@@ -301,6 +313,19 @@ public final class ThresholdVerifier {
         total = Long.parseLong(m.group(1).replace(",", ""));
         ok = Long.parseLong(m.group(2).replace(",", ""));
         ko = Long.parseLong(m.group(3).replace(",", ""));
+      }
+    }
+
+    if (total < 0) {
+      // Rolling line, Gatling 3.9 shape: "> Global   (OK=99   KO=0   )" — no total column.
+      Pattern p =
+          Pattern.compile(
+              "^> Global\\s+\\(OK=([\\d,]+)\\s+KO=([\\d,]+)\\s*\\)", Pattern.MULTILINE);
+      Matcher m = p.matcher(content);
+      while (m.find()) {
+        ok = Long.parseLong(m.group(1).replace(",", ""));
+        ko = Long.parseLong(m.group(2).replace(",", ""));
+        total = ok + ko;
       }
       if (total < 0) return null;
     }
@@ -326,6 +351,29 @@ public final class ThresholdVerifier {
       if ("-".equals(raw)) continue;
       try {
         val = Long.parseLong(raw);
+      } catch (NumberFormatException ignored) {
+        // skip
+      }
+    }
+    return val;
+  }
+
+  /**
+   * Gatling 3.9 summary row: {@code > <label>   640 (OK=640    KO=0     )}. {@code colIdx}: 0=Total,
+   * 1=OK, 2=KO. Returns -1 if not found or the column holds "-".
+   */
+  private static long parseLegacyStat(String content, String labelPattern, int colIdx) {
+    Pattern p =
+        Pattern.compile(
+            "^> " + labelPattern + "\\s+([\\d,.-]+)\\s+\\(OK=([\\d,.-]+)\\s+KO=([\\d,.-]+)\\s*\\)",
+            Pattern.MULTILINE);
+    Matcher m = p.matcher(content);
+    long val = -1;
+    while (m.find()) {
+      String raw = m.group(colIdx + 1).replace(",", "");
+      if ("-".equals(raw)) continue;
+      try {
+        val = (long) Double.parseDouble(raw);
       } catch (NumberFormatException ignored) {
         // skip
       }

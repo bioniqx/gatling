@@ -46,7 +46,11 @@ Simulation aliases per game: silkroad has `soak/stress/spike/basic`; bonanza has
   - `protocol/Codec.java` — MessagePack codec wrapping the proprietary GaaS JAR.
 - `core/src/main/proto/plugin_service.proto` — gRPC stubs shared by all games (bonanza's Scala gRPC sim reuses the generated Java classes; no ScalaPB).
 - `games/<name>/src/gatling/java/...` — per-game `Endpoints`, `SlotRequests` (request builders + JSON bodies from `resources/games/<name>/bodies/`), simulations subclassing the core bases, and a scenario class.
-- `games/{bonanza,naga777}/src/gatling/scala/` — the only Scala code: `BonanzaGrpcSimulation.scala` + `Naga777GrpcSimulation.scala` (both call Gatling's *Java* gRPC DSL from Scala; each build.gradle adds the `scala` plugin).
+- **gRPC simulations run on a different Gatling than the REST ones.** Gatling 3.15's first-party gRPC DSL is Enterprise-gated and aborts above 5 VUs / 5 minutes, so both gRPC sims were moved to the community plugin `com.github.phisgr:gatling-grpc` 0.17.0 on Gatling 3.9.5 (Scala core DSL, no cap). `io.gatling.gradle` 3.9.5.x breaks on Gradle 9, so each builds its own classpath and runs via `JavaExec`:
+  - `games/naga777/src/gatling/scala/Naga777GrpcSimulation.scala` — whole module on 3.9.5 (`gatlingRt`).
+  - `games/bonanza/src/gatlingGrpc/scala/BonanzaGrpcSimulation.scala` — 3.9.5 (`gatlingGrpcRt`); bonanza's Java REST sims in `src/gatling/java` stay on 3.15 under the Gatling Gradle plugin.
+  - silkroad is REST-only and stays on 3.15 (HTTP DSL is uncapped).
+  - The community plugin is archived upstream and will not support Gatling 3.10+. See README → gRPC runtimes.
 
 **System-property plumbing** — runtime knobs (`-Dusers`, `-Dhost`, `-Dport`, …) are NOT auto-forwarded from the Gradle JVM to the Gatling fork. Each game's `build.gradle` has a `FORWARDED_PROPS` list; a new `-D` flag must be added there (and to `VERIFY_PROPS` in the root `build.gradle` for verifier flags) or the simulation will silently see the default.
 

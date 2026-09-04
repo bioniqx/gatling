@@ -10,7 +10,6 @@ plugins {
 
 dependencies {
     api "io.gatling.highcharts:gatling-charts-highcharts:${gatlingVersion}"
-    api "io.gatling:gatling-grpc-java:${gatlingVersion}"
 
     api "io.grpc:grpc-protobuf:${grpcVersion}"
     api "io.grpc:grpc-stub:${grpcVersion}"

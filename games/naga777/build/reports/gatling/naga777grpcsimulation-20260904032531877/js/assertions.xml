@@ -1,0 +1,23 @@
+<testsuite name="com.rgp.loadtest.naga777.grpc.Naga777GrpcSimulation" tests="7" errors="0" failures="2" time="0">
+<testcase name="Global: mean of response time is less than or equal to 500.0" status="true" time="0">
+  <system-out>Global: mean of response time is less than or equal to 500.0</system-out>
+</testcase>
+<testcase name="Global: percentage of failed events is less than or equal to 1.0" status="true" time="0">
+  <system-out>Global: percentage of failed events is less than or equal to 1.0</system-out>
+</testcase>
+<testcase name="Global: mean requests per second is greater than 50.0" status="false" time="0">
+  <failure type="Global">Actual value: 34.666666666666664</failure>
+</testcase>
+<testcase name="Global: count of successful events is greater than 100000.0" status="false" time="0">
+  <failure type="Global">Actual value: 10400.0</failure>
+</testcase>
+<testcase name="Spin: 95th percentile of response time is less than or equal to 800.0" status="true" time="0">
+  <system-out>Spin: 95th percentile of response time is less than or equal to 800.0</system-out>
+</testcase>
+<testcase name="Spin: percentage of failed events is less than or equal to 0.5" status="true" time="0">
+  <system-out>Spin: percentage of failed events is less than or equal to 0.5</system-out>
+</testcase>
+<testcase name="Join: percentage of failed events is less than or equal to 0.5" status="true" time="0">
+  <system-out>Join: percentage of failed events is less than or equal to 0.5</system-out>
+</testcase>
+</testsuite>

@@ -2,11 +2,13 @@
 # Naga's Fortune 777 — Per-Game Override
 # ============================================================================
 #
-# Naga777 REST (session-register + health) chạy localhost:3000 không contextPath
-# → match core defaults, không cần khai gì. File giữ làm placeholder + audit trail.
+# Naga777 là gRPC-only: backend chỉ còn expose `/health` + `/health/detail` trên
+# localhost:3000 (không contextPath) — dùng cho health probe của run-variant.sh,
+# simulation không bắn REST request nào. Match core defaults nên không cần khai gì.
+# File giữ làm placeholder + audit trail.
 #
-# gRPC endpoint (spin) KHÔNG cấu hình ở đây — simulation đọc -DgrpcHost / -DgrpcPort
-# (default localhost:9096).
+# gRPC endpoint (join + spin) KHÔNG cấu hình ở đây — simulation đọc -DgrpcHost /
+# -DgrpcPort (default localhost:9096).
 #
-# Nếu staging/prod đổi port REST, override qua CLI: -Dport=8080 -Dhost=staging.example.com
+# Nếu staging/prod đổi port health, override qua CLI: -Dport=8080 -Dhost=staging.example.com
 # ============================================================================

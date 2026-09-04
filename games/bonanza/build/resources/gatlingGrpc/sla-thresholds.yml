@@ -1,0 +1,25 @@
+# ============================================================================
+# Golden Boat Bonanza — Game-specific SLA Override
+# ============================================================================
+#
+# File này CHỈ list field cần ghi đè cho bonanza.
+# Field thiếu sẽ tự fall back lên `config/sla-thresholds.yml` ở repo root.
+#
+# Loader precedence (top wins, deep-merge với layer dưới):
+#   -DslaConfig=<path>                                       (full override)
+#   games/bonanza/src/gatling/resources/sla-thresholds.yml    ← THIS FILE
+#   config/sla-thresholds.yml                                (core)
+#   classpath:sla-thresholds.yml                             (bundled fallback)
+#   SlaConfig.defaults()                                     (hardcoded base)
+# ============================================================================
+
+sla:
+  # Mean response time — match legacy BonanzaRestSimulation RESPONSE_TIME=500ms.
+  # (Bonanza has 10 endpoints incl. bonus loop + history drill-down; the legacy ceiling held at
+  # 500ms in the standalone repo, so we hold to it here too.)
+  pr4_mean_response_ms_max: 500
+
+  # Failed % chặt hơn core 1.0% — từ legacy standalone repo (FAILED_PERCENT=0.99).
+  pr5_error_percent_max: 0.99
+
+# crash, variants → inherited từ core
