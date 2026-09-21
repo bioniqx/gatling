@@ -18,7 +18,7 @@
 | Response đồng bộ | `Call` trả **toàn bộ kết quả spin** trong `PluginResponse.result` (msgpack), ZMQ push chỉ là bản sao → latency đo được là latency spin thật (khác naga777 chỉ đo ack) | `StandaloneGrpcService.java:518`, `SpinHandler.runSpinAndRespond` |
 | Lỗi nghiệp vụ | gRPC status vẫn OK; lỗi nằm trong body: `c != 0` + `message`/`error` | `ErrorEnvelope.isError/writeError` |
 | Wallet | `WALLET_GATEWAY=mock` → `MockWalletAdapter` Redis, default balance 100000/user | `MockWalletAdapter.java:32` |
-| Health | `GET http://localhost:3000/api/game/mutant-merge/health` (context path mặc định) | `.env.dev`, `CLAUDE.md` backend |
+| Health | `GET http://localhost:3000/health` — dev stack hợp nhất (`Stable_Mutant_Merge/docker-compose.yml`) xoá context path; deploy traefik dùng `/api/game/mutant-merge/health` | `Stable_Mutant_Merge/docker-compose.yml:73`, curl 2026-09-21 |
 | Jackpot Bio-Vault | Trigger 0.2%, luồng open/pick/collect (1508/1509/1514) **không chặn spin** → ngoài phạm vi | grep orchestrator không có guard |
 
 ## 2. Cấu trúc module
@@ -30,7 +30,7 @@ games/mutantmerge/
 └── src/gatling/
     ├── scala/com/rgp/loadtest/mutantmerge/grpc/MutantMergeGrpcSimulation.scala
     └── resources/
-        ├── game.yml             # port 3000 + contextPath /api/game/mutant-merge (health probe)
+        ├── game.yml             # placeholder — health /health trùng core defaults
         ├── sla-thresholds.yml   # placeholder — inherit core defaults
         └── logback-test.xml     # copy từ naga777
 ```
@@ -62,17 +62,17 @@ Defaults (`-D` override):
 
 ## 4. Tích hợp wrapper & docs
 
-- `scripts/run-variant.sh`: thêm case `mutantmerge` → `HEALTH_URL=http://localhost:${PORT}/api/game/mutant-merge/health`. Chạy chuẩn:
+- `scripts/run-variant.sh`: thêm case `mutantmerge` → `HEALTH_URL=http://localhost:${PORT}/health`. Chạy chuẩn:
   ```bash
   ./scripts/run-variant.sh --game mutantmerge --variant target --simulation Grpc \
-    --users 1000 --duration-minutes 60 --ramp-minutes 2 --container game-mutant-merge
+    --users 1000 --duration-minutes 60 --ramp-minutes 2 --container stable-game-mutant-merge
   ```
 - `CLAUDE.md`: thêm mutantmerge vào lệnh compile, lệnh chạy, danh sách alias, mục gRPC runtimes.
 - `README.md`: thêm hàng mutantmerge vào bảng games + setup SUT.
 
 ## 5. SUT setup (local)
 
-Backend repo: build image + chạy với Mongo/Redis (`make up-full` / `docker-compose.full.yml`), env `WALLET_GATEWAY=mock`, `CHEAT_ENABLED=false`, `GRPC_PORT=9104`. ZMQ không có subscriber → PUB drop message, không ảnh hưởng. Container `game-mutant-merge`, `mem_limit 640m`.
+Dev stack hợp nhất `Stable_Mutant_Merge/docker-compose.yml` (game + Mongo + Redis + wsproxy), env `WALLET_GATEWAY=mock`, `GRPC_PORT=9104` (`CHEAT_ENABLED=true` trên dev stack — vô hại vì cheat phải arm qua cmd 1900). ZMQ không có subscriber → PUB drop message, không ảnh hưởng. Container thực tế trên dev stack: `stable-game-mutant-merge`.
 
 ## 6. Error handling
 
@@ -94,7 +94,7 @@ Backend repo: build image + chạy với Mongo/Redis (`make up-full` / `docker-c
 ## Assumptions
 
 - SUT local docker, wallet mock, cheat tắt; không chạy staging đợt này.
-- Tên module `mutantmerge`, container `game-mutant-merge`.
+- Tên module `mutantmerge`, container `stable-game-mutant-merge`.
 - Journey chỉ spin (+ super bet tuỳ chọn); buy feature & jackpot flow để phase sau.
 
 ## Ngoài phạm vi

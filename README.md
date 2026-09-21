@@ -400,7 +400,7 @@ These reach simulations only when you call `./gradlew :games:…` directly. Only
 
 **Silkroad-only:** `usersStart`, `usersEnd` (Stress); `baseline`, `spike`, `spikeDurationSec`, `cycles`, `cycleIntervalMinutes` (Spike).
 
-**Bonanza & Naga777:** `grpcHost`, `grpcPort` (gRPC); `paceSec`, `requestRate`, `eventCount` (bonanza Soak + both gRPC sims). **Naga777-only:** `coinValue`, `coinPerLine` (bet shape — server derives bet = coinValue × coinPerLine × 5).
+**Bonanza, Naga777 & Mutant Merge:** `grpcHost`, `grpcPort` (gRPC); `paceSec`, `requestRate`, `eventCount` (bonanza Soak + all gRPC sims). **Naga777-only:** `coinValue`, `coinPerLine` (bet shape — server derives bet = coinValue × coinPerLine × 5). **Mutant Merge-only:** `betLevelId` (1-based index into the bet ladder, default 3 = $1.00), `superBet` (`true` = super bet, debit × 1.2).
 
 > `usersStart` / `usersEnd` / `baseline` are users **per minute** — the simulation divides by 60 internally.
 

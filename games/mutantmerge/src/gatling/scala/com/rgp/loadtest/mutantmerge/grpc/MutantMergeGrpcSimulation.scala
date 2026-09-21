@@ -113,6 +113,8 @@ class MutantMergeGrpcSimulation extends Simulation {
         grpc("Join")
           .rpc(PluginServiceGrpc.getConnectAndCallMethod)
           .payload(joinPayload)
+          // A wrong pluginName still returns gRPC OK, just with no ZMQ topic subscribed.
+          .extract(res => Some(res.getMetadata.getTopicsCount).success)(_.gt(0))
       )
       // A failed Join stops the VU so it does not pollute the Spin error rate.
       .exitHereIfFailed

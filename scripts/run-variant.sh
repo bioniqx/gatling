@@ -2,7 +2,7 @@
 # Orchestrate a full load-test variant run: monitoring + Gatling + threshold verification.
 #
 # Usage:
-#   run-variant.sh --game <silkroad|bonanza|naga777> \
+#   run-variant.sh --game <silkroad|bonanza|naga777|mutantmerge> \
 #                  --variant <name> --simulation <Soak|Stress|Spike|Basic> \
 #                  --users <N> --duration-minutes <N> --ramp-minutes <N> \
 #                  --container <docker-container-name>
@@ -53,7 +53,7 @@ done
 # Game must be specified explicitly via --game or GAME env var. No silent default.
 GAME="${GAME_ARG:-${GAME:-}}"
 if [[ -z "$GAME" ]]; then
-  echo "ERROR: --game <silkroad|bonanza|naga777> required (or set GAME env var)" >&2
+  echo "ERROR: --game <silkroad|bonanza|naga777|mutantmerge> required (or set GAME env var)" >&2
   echo "       Example: --game bonanza  OR  GAME=bonanza $0 ..." >&2
   exit 1
 fi
