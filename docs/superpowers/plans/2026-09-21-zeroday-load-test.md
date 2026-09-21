@@ -40,7 +40,7 @@
 - A new `-D` flag must be listed in the module's `FORWARDED_PROPS` or the simulation silently sees the default.
 - Health URL: `http://localhost:3000/api/game/zeroday/actuator/health`; container `game-zero-day`.
 - Code, comments and commits in English. `docs/` is gitignored: plan/spec files are added with `git add -f`.
-- SUT for smoke runs: `be-zero-day` container `game-zero-day` with `LUIGI_WALLET_ENABLED=false`, `SPRING_PROFILES_ACTIVE=dev`, `CHEAT_ENABLED=false`, logging driver `json-file` (so `docker logs` works), Mongo/Redis/RabbitMQ reachable.
+- SUT for smoke runs: `be-zero-day` container `game-zero-day` with `LUIGI_WALLET_ENABLED=false` (any non-`trial` profile, e.g. the compose default `staging`), `CHEAT_ENABLED=false`, logging driver `json-file` (so `docker logs` works), Mongo/Redis/RabbitMQ reachable.
 
 ## References
 
@@ -232,7 +232,7 @@ import scala.concurrent.duration._
  * Call runs the spin synchronously, then returns an EMPTY PluginResponse: the result and any
  * business error (`c != 0`) are published over ZMQ only. Response time is the real spin time,
  * but Gatling KO covers transport failures only — check the backend log for
- * "[gRPC] Call business error" after every run.
+ * "[gRPC] (ConnectAndCall|Call) (business )?error" lines other than c=1362 after every run.
  *
  * Defaults (override via -D): users=1000, durationMinutes=60, rampMinutes=2, paceSec=5,
  * requestRate=50, eventCount=100000, grpcHost=localhost, grpcPort=9103, bet=1.00.
@@ -400,8 +400,8 @@ Expected: `BUILD SUCCESSFUL`; Gatling stats show `Join` OK=1 KO=0 and `Spin` OK�
 
 - [ ] **Step 9: Business-error log check (ack-only, so this is mandatory)**
 
-Run: `docker logs game-zero-day 2>&1 | grep -c "\[gRPC\] Call business error"`
-Expected: `0` (only `c=1362` lines are acceptable, and only if a jackpot triggered).
+Run: `docker logs game-zero-day 2>&1 | grep -E "\[gRPC\] (ConnectAndCall|Call) (business )?error" | grep -vc "c=1362"`
+Expected: `0` (matches business and internal errors of Join and Call; `c=1362` jackpot-pending lines are excluded).
 
 - [ ] **Step 10: Commit**
 
@@ -484,7 +484,7 @@ git commit -m "feat(run-variant): support zeroday game"
 ./gradlew :games:zeroday:grpc     -Dusers=5 -DdurationMinutes=1 -DrequestRate=0 -DeventCount=0 -DgrpcPort=9103
 ```
 
-- Simulation aliases paragraph: after the mutantmerge sentence add `zeroday has `grpc` only (gRPC :9103, pluginName `yama_01023`, bet via `-Dbet` on the 25-step ladder, validated at load; Call returns an empty ack — business errors go over ZMQ, so grep the backend log for `[gRPC] Call business error`);`.
+- Simulation aliases paragraph: after the mutantmerge sentence add `zeroday has `grpc` only (gRPC :9103, pluginName `yama_01023`, bet via `-Dbet` on the 25-step ladder, validated at load; Call returns an empty ack — business and internal errors go over ZMQ, so grep the backend log for `[gRPC] (ConnectAndCall|Call) (business )?error` lines other than `c=1362`);`.
 - gRPC runtimes list: after the mutantmerge bullet add `  - `games/zeroday/src/gatling/scala/ZeroDayGrpcSimulation.scala` — same layout as naga777.`
 
 - [ ] **Step 2: Update `README.md`**
@@ -511,7 +511,7 @@ Zero Day example (put the comment line `Zero Day — gRPC production gate (port 
 - Per-game props paragraph: add `**Zero Day-only:** `bet` (decimal string on the bet ladder 0.20–100.00, default 1.00; off-ladder values fail at load).`
 - Versions table and gRPC runtimes: add zeroday next to mutantmerge; add bullet `- **zeroday** is gRPC-only too, same layout as naga777.`
 - Scala section: change "three files" to "four files", add `games/zeroday/src/gatling/scala/com/rgp/loadtest/zeroday/grpc/ZeroDayGrpcSimulation.scala` to the list.
-- SUT setup: add a short Zero Day subsection: run `be-zero-day` container `game-zero-day` with `LUIGI_WALLET_ENABLED=false`, `SPRING_PROFILES_ACTIVE=dev`, `CHEAT_ENABLED=false`, logging driver `json-file`; after each run check `docker logs game-zero-day 2>&1 | grep -c "\[gRPC\] Call business error"` (Gatling cannot see business errors; `c=1362` jackpot-pending rejections block a VU's spins for ~60 s and are expected occasionally).
+- SUT setup: add a short Zero Day subsection: run `be-zero-day` container `game-zero-day` with `LUIGI_WALLET_ENABLED=false` (any non-`trial` profile, e.g. the compose default `staging`), `CHEAT_ENABLED=false`, logging driver `json-file`; after each run `docker logs game-zero-day 2>&1 | grep -E "\[gRPC\] (ConnectAndCall|Call) (business )?error" | grep -vc "c=1362"` must print `0` (Gatling cannot see business or internal errors; `c=1362` jackpot-pending rejections block a VU's spins for ~60 s, are expected occasionally and are excluded).
 
 - [ ] **Step 3: Verify every zeroday mention landed**
 

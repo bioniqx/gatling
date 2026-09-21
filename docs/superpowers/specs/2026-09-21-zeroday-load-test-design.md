@@ -74,7 +74,7 @@ Defaults (`-D` override):
 ## 5. SUT setup (local)
 
 `be-zero-day/docker-compose.yml` service `game-zero-day` (container `game-zero-day`, ports 3000/9103) cần override cho local:
-- `LUIGI_WALLET_ENABLED=false`, `SPRING_PROFILES_ACTIVE=dev` (không phải `trial`) → mock wallet.
+- `LUIGI_WALLET_ENABLED=false` (`.env.staging` đang bật Luigi); profile bất kỳ khác `trial` (vd `staging`) → mock wallet.
 - `CHEAT_ENABLED=false`.
 - Mongo / Redis / RabbitMQ trỏ về stack local.
 - Logging driver `loki` → đổi sang `json-file` để `docker logs` dùng được cho bước kiểm log (§7).
@@ -90,7 +90,7 @@ Defaults (`-D` override):
 
 1. `./gradlew :games:zeroday:gatlingClasses` — compile sạch.
 2. Smoke: `./gradlew :games:zeroday:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 -DrequestRate=0 -DeventCount=0` → Join/Spin 0 KO.
-3. **Log check** (bắt buộc vì ack-only): `docker logs game-zero-day 2>&1 | grep -c "\[gRPC\] Call business error"` → 0 (hoặc chỉ `c=1362` khi có jackpot trigger).
+3. **Log check** (bắt buộc vì ack-only): `docker logs game-zero-day 2>&1 | grep -E "\[gRPC\] (ConnectAndCall|Call) (business )?error" | grep -vc "c=1362"` → 0. Bắt cả lỗi nghiệp vụ lẫn lỗi hệ thống (`[gRPC] Call error` — exception không có chữ "business") của Join và Spin; `c=1362` (jackpot pending) là bình thường nên bị loại.
 4. Negative check: `-Dbet=0.33` → simulation fail ngay lúc startup (chứng minh ladder check).
 5. Wrapper smoke: `run-variant.sh --game zeroday … --users 5 --duration-minutes 1` → đủ artifacts, `health.csv` toàn 200. Floors `requestRate`/`eventCount` fail ở smoke scale là expected.
 
