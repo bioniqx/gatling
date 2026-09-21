@@ -26,6 +26,7 @@ Use this as the source of truth for the four shell variables every command below
 | Silk Road Caravans  | `silkroad` | `../be-silk-road-caravans`  | `game-silk-road-caravans`    | `3000` | `Basic`, `Soak`, `Stress`, `Spike`            |
 | Golden Boat Bonanza | `bonanza`   | `../be-golden-boat-bonanza` | `game-golden-boat-bonanza`   | `3005` | `Basic`, `Soak`, `Grpc`                       |
 | Naga's Fortune 777  | `naga777`  | `../Stable_NAGAS_777`       | `stable-naga_fortune_777`    | `3000` | `Grpc`                                        |
+| Mutant Merge        | `mutantmerge` | `../Stable_Mutant_Merge` | `stable-game-mutant-merge`   | `3000` | `Grpc`                                        |
 
 Backends live in **sibling repos** and aren't built from here. Four more games are stubbed in `settings.gradle` (commented out).
 
@@ -125,7 +126,7 @@ A green **PASS** banner = the test cleared every threshold. Done.
 
 ```bash
 ./scripts/run-variant.sh \
-  --game <silkroad|bonanza|naga777> \
+  --game <silkroad|bonanza|naga777|mutantmerge> \
   --variant <baseline|target|stress|critical> \
   --simulation <Soak|Stress|Spike|Basic|Grpc> \
   --container <name> \
@@ -135,14 +136,14 @@ A green **PASS** banner = the test cleared every threshold. Done.
 
 | Flag                  | Default     | Required | Notes                                                                |
 |-----------------------|-------------|----------|----------------------------------------------------------------------|
-| `--game`              | —           | ✅       | `silkroad`, `bonanza`, or `naga777`. May also be set via the `GAME` env var. **No default** — running without it fails fast (previously a silent silkroad default was a footgun for bonanza runs). |
+| `--game`              | —           | ✅       | `silkroad`, `bonanza`, `naga777`, or `mutantmerge`. May also be set via the `GAME` env var. **No default** — running without it fails fast (previously a silent silkroad default was a footgun for bonanza runs). |
 | `--variant`           | —           | ✅       | Picks the CPU/Mem ceiling — see [Variant ceilings](#variant-ceilings). |
 | `--simulation`        | —           | ✅       | Case-insensitive.                                                    |
 | `--container`         | —           | ✅       | Falls back to `--port` if the container doesn't exist.               |
 | `--users`             | `1000`      |          | Concurrent VU count.                                                 |
 | `--duration-minutes`  | `60`        |          | Steady-state duration.                                               |
 | `--ramp-minutes`      | `5`         |          | Ramp-up duration.                                                    |
-| `--port`              | `3005` for bonanza, `3000` for silkroad and naga777 |          | Forwarded to Gatling as `-Dport=`, used to build the health probe URL, and used as monitor-resources fallback port. Default derives from `--game`. |
+| `--port`              | `3005` for bonanza, `3000` for silkroad, naga777 and mutantmerge |          | Forwarded to Gatling as `-Dport=`, used to build the health probe URL, and used as monitor-resources fallback port. Default derives from `--game`. |
 | `--parallel`          | off         |          | Soak: all VUs at once (no ramp).                                     |
 | `--requests`          | unset       |          | Basic: total requests across all VUs.                                |
 | `--scenario`          | unset       |          | Basic: endpoint or mode — see [Test one endpoint](#test-one-endpoint-at-a-time). |
@@ -167,7 +168,7 @@ A green **PASS** banner = the test cleared every threshold. Done.
 >
 > **`Grpc` runs on a different Gatling runtime than the REST simulations** (3.9.5 + the community gRPC plugin, no VU cap) — see [gRPC runtimes](#grpc-runtimes).
 >
-> **`Grpc` defaults differ:** `rampMinutes=2` (not 5), `paceSec=5`, `requestRate=50` req/s floor, `eventCount=100000` successful-request floor. Defaults to `grpcHost=localhost`; `grpcPort=9091` (bonanza) / `9096` (naga777). The wrapper doesn't expose `--grpc-host` / `--grpc-port` — if you need to override the gRPC endpoint, [run via Gradle directly](#advanced-runs-without-the-wrapper).
+> **`Grpc` defaults differ:** `rampMinutes=2` (not 5), `paceSec=5`, `requestRate=50` req/s floor, `eventCount=100000` successful-request floor. Defaults to `grpcHost=localhost`; `grpcPort=9091` (bonanza) / `9096` (naga777) / `9104` (mutantmerge). The wrapper doesn't expose `--grpc-host` / `--grpc-port` — if you need to override the gRPC endpoint, [run via Gradle directly](#advanced-runs-without-the-wrapper).
 
 ### Standard examples
 
@@ -207,6 +208,12 @@ A green **PASS** banner = the test cleared every threshold. Done.
   --variant target --simulation Grpc \
   --users 1000 --duration-minutes 60 --ramp-minutes 2 \
   --container stable-naga_fortune_777
+
+# Mutant Merge — gRPC production gate (port 3000 + health /health auto-derived)
+./scripts/run-variant.sh --game mutantmerge \
+  --variant target --simulation Grpc \
+  --users 1000 --duration-minutes 60 --ramp-minutes 2 \
+  --container stable-game-mutant-merge
 ```
 
 ---
@@ -467,15 +474,15 @@ Pinned in `build.gradle` at the repo root.
 | Gatling (REST sims)      | **3.15.0** | silkroad, and bonanza's `Soak` / `Basic`.                                       |
 | Gatling Gradle plugin    | 3.15.0.2   | REST test-run wiring (`io.gatling.gradle`) — the gRPC sims don't use it.        |
 | Gradle wrapper           | 9.2.1      | Bundled — no separate install.                                                  |
-| Scala library            | **2.13.12** | Only by the bonanza & naga777 gRPC simulations — see [Scala / gRPC](#scala--grpc-simulation). |
-| Gatling (gRPC sims)      | **3.9.5**  | bonanza `Grpc` + naga777 `Grpc` — see [gRPC runtimes](#grpc-runtimes).           |
+| Scala library            | **2.13.12** | Only by the bonanza, naga777 & mutantmerge gRPC simulations — see [Scala / gRPC](#scala--grpc-simulation). |
+| Gatling (gRPC sims)      | **3.9.5**  | bonanza, naga777 & mutantmerge `Grpc` — see [gRPC runtimes](#grpc-runtimes).           |
 | gRPC DSL                 | `com.github.phisgr:gatling-grpc` 0.17.0 | Community plugin, no VU cap. Replaced Gatling's Enterprise-gated gRPC DSL. |
 | gRPC core / Protobuf     | 1.75.0 / 4.32.1 | Generated stubs in `:core` (used only by the gRPC sim).                    |
 | Python                   | 3.9+       | `generate-summary-html.py` (post-run report).                                   |
 
 ### gRPC runtimes
 
-Both gRPC simulations run on **Gatling 3.9.5** with the community plugin
+All gRPC simulations run on **Gatling 3.9.5** with the community plugin
 `com.github.phisgr:gatling-grpc` — not on the Gatling 3.15 used by the REST simulations.
 
 The reason is a hard limit. Gatling 3.15's first-party gRPC DSL (`io.gatling:gatling-grpc-java`)
@@ -491,6 +498,7 @@ entirely: each builds its own Gatling 3.9.5 classpath in a dedicated configurati
 `io.gatling.app.Gatling` through a plain `JavaExec` task.
 
 - **naga777** is gRPC-only, so its whole module is on 3.9.5 (`gatlingRt` configuration).
+- **mutantmerge** is gRPC-only too, same layout as naga777.
 - **bonanza** ships both, so it is split: `src/gatling/java` (REST) stays on 3.15 under the
   Gatling Gradle plugin, while `src/gatlingGrpc/scala` compiles and runs against 3.9.5
   (`gatlingGrpcRt` configuration). The two classpaths never mix.
@@ -559,11 +567,12 @@ stay behind on 3.9.5 unless someone forks the plugin or buys an Enterprise licen
 
 ### Scala / gRPC simulation
 
-The whole harness is Java except for **two files** — the bonanza and naga777 gRPC tests:
+The whole harness is Java except for **three files** — the bonanza, naga777 and mutantmerge gRPC tests:
 
 ```
 games/bonanza/src/gatling/scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala
 games/naga777/src/gatling/scala/com/rgp/loadtest/naga777/grpc/Naga777GrpcSimulation.scala
+games/mutantmerge/src/gatling/scala/com/rgp/loadtest/mutantmerge/grpc/MutantMergeGrpcSimulation.scala
 ```
 
 **Why a Scala file at all?** Gatling 3.15 ships gRPC support in two artifacts: `gatling-grpc-java` (Java DSL, already on the classpath via `:core`) and `gatling-grpc` (Scala-side). The simulation itself only uses the Java DSL (`io.gatling.javaapi.grpc.*`) — calling it from Scala keeps a single source set/artifact shape that the Gatling Gradle plugin can load, and avoids the Scala DSL's session-aware-closure-only style that doesn't fit the rest of this module's static-payload pattern. Net effect: ~150 lines of mostly Java-DSL code that happens to compile as Scala.
