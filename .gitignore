@@ -43,3 +43,4 @@ HELP.md
 # Python
 __pycache__/
 *.pyc
+/.superpowers/
