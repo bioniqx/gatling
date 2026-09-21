@@ -72,6 +72,7 @@ if [[ -z "$PORT" ]]; then
   case "$GAME" in
     bonanza)   PORT=3005 ;;
     naga777)  PORT=3000 ;;
+    mutantmerge) PORT=3000 ;;
     silkroad) PORT=3000 ;;
     *)        PORT=3000 ;;
   esac
@@ -83,6 +84,8 @@ fi
 case "$GAME" in
   bonanza)   HEALTH_URL="http://localhost:${PORT}/golden/api/configs/bet-levels" ;;
   naga777)  HEALTH_URL="http://localhost:${PORT}/health" ;;
+  # Unified dev stack clears the context path; the traefik deploy uses /api/game/mutant-merge/health.
+  mutantmerge) HEALTH_URL="http://localhost:${PORT}/health" ;;
   silkroad) HEALTH_URL="http://localhost:${PORT}/actuator/health" ;;
   *)        HEALTH_URL="http://localhost:${PORT}/actuator/health" ;;
 esac
