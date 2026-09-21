@@ -12,6 +12,7 @@ include ':games:silkroad'
 include ':games:bonanza'
 include ':games:naga777'
 include ':games:mutantmerge'
+include ':games:zeroday'
 
 // To enable another game, drop its directory under games/<name>/ and uncomment here.
 // include ':games:fruit-respin-mania'

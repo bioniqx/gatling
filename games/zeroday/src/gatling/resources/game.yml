@@ -1,0 +1,10 @@
+# ============================================================================
+# Zero Day — Per-Game Override
+# ============================================================================
+#
+# gRPC-only: REST is used only by run-variant.sh's health probe, which builds
+# its own URL (http://localhost:3000/api/game/zeroday/actuator/health).
+#
+# gRPC endpoint (join + spin) is NOT configured here — the simulation reads
+# -DgrpcHost / -DgrpcPort (default localhost:9103).
+# ============================================================================
