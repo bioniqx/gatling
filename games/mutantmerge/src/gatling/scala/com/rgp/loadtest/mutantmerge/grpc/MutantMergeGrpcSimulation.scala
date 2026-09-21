@@ -116,7 +116,9 @@ class MutantMergeGrpcSimulation extends Simulation {
           // A wrong pluginName still returns gRPC OK, just with no ZMQ topic subscribed.
           .extract(res => Some(res.getMetadata.getTopicsCount).success)(_.gt(0))
       )
-      // A failed Join stops the VU so it does not pollute the Spin error rate.
+      // A failed Join stops the VU so it does not pollute the Spin error rate; the pause keeps
+      // the closed-model injector from hammering Join when every Join is rejected.
+      .doIf(session => session.isFailed)(pause(paceSec.seconds))
       .exitHereIfFailed
       .during(durationMinutes.minutes) {
         exec(

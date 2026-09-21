@@ -14,6 +14,7 @@ New here? Jump to [Quick start](#quick-start) — first test takes ~5 minutes.
 | **Developer adding a new game**   | Above + [Configuration](#configuration), [Project layout](#project-layout), [Add a new game](#add-a-new-game)             |
 
 Vietnamese long-form walkthrough: [`docs/getting-started.md`](docs/getting-started.md).
+Naga777 run-and-read-results guide: [`naga777-load-test-guide.md`](naga777-load-test-guide.md).
 
 ---
 
@@ -570,12 +571,12 @@ stay behind on 3.9.5 unless someone forks the plugin or buys an Enterprise licen
 The whole harness is Java except for **three files** — the bonanza, naga777 and mutantmerge gRPC tests:
 
 ```
-games/bonanza/src/gatling/scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala
+games/bonanza/src/gatlingGrpc/scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala
 games/naga777/src/gatling/scala/com/rgp/loadtest/naga777/grpc/Naga777GrpcSimulation.scala
 games/mutantmerge/src/gatling/scala/com/rgp/loadtest/mutantmerge/grpc/MutantMergeGrpcSimulation.scala
 ```
 
-**Why a Scala file at all?** Gatling 3.15 ships gRPC support in two artifacts: `gatling-grpc-java` (Java DSL, already on the classpath via `:core`) and `gatling-grpc` (Scala-side). The simulation itself only uses the Java DSL (`io.gatling.javaapi.grpc.*`) — calling it from Scala keeps a single source set/artifact shape that the Gatling Gradle plugin can load, and avoids the Scala DSL's session-aware-closure-only style that doesn't fit the rest of this module's static-payload pattern. Net effect: ~150 lines of mostly Java-DSL code that happens to compile as Scala.
+**Why a Scala file at all?** The gRPC sims use the community plugin `com.github.phisgr:gatling-grpc` on Gatling 3.9.5 (see [gRPC runtimes](#grpc-runtimes)), and that plugin only ships a Scala DSL — so these simulations are written in Scala. Their payloads are still the Java proto stubs and the MessagePack `Codec` from `:core`.
 
 **Versions:** Scala `2.13.12` (binary), Gatling `3.15.0`, `gatling-grpc:3.15.0`. Pinned in [`games/bonanza/build.gradle`](games/bonanza/build.gradle).
 
