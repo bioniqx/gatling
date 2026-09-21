@@ -1,7 +1,0 @@
-# ============================================================================
-# Naga's Fortune 777 — Per-Game SLA Override
-# ============================================================================
-#
-# Chỉ list field khác config/sla-thresholds.yml (core). Field thiếu → inherit core.
-# Hiện dùng nguyên core defaults — chỉnh sau khi có baseline production.
-# ============================================================================
