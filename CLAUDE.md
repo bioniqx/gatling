@@ -35,7 +35,7 @@ Docs: `README.md` (English, authoritative reference), `HUONG-DAN.md` + `docs/get
   -DresourceCsv=... -DhealthCsv=... -DgatlingLog=... -Dusers=1000 -DdurationSec=3900
 ```
 
-Simulation aliases per game: silkroad has `soak/stress/spike/basic`; bonanza has `soak/basic/grpc` (no Stress/Spike yet); naga777 has `grpc` only (no REST spin — gRPC :9096, bet via `-DcoinValue`/`-DcoinPerLine`); mutantmerge has `grpc` only (gRPC :9104, pluginName `yama_01024`, bet via 1-based `-DbetLevelId`, optional `-DsuperBet=true`; Spin is KO when the response body has a non-zero `c` error code); zeroday has `grpc` only (gRPC :9103, pluginName `yama_01023`, bet via `-Dbet` on the 25-step ladder, validated at load; Call returns an empty ack — business errors go over ZMQ, so grep the backend log for `business error` (Join and Call)). Arbitrary simulations: `./gradlew :games:<g>:gatlingRun --simulation <FQCN>`.
+Simulation aliases per game: silkroad has `soak/stress/spike/basic`; bonanza has `soak/basic/grpc` (no Stress/Spike yet); naga777 has `grpc` only (no REST spin — gRPC :9096, bet via `-DcoinValue`/`-DcoinPerLine`); mutantmerge has `grpc` only (gRPC :9104, pluginName `yama_01024`, bet via 1-based `-DbetLevelId`, optional `-DsuperBet=true`; Spin is KO when the response body has a non-zero `c` error code); zeroday has `grpc` only (gRPC :9103, pluginName `yama_01023`, bet via `-Dbet` on the 25-step ladder, validated at load; Call returns an empty ack — business and internal errors go over ZMQ, so grep the backend log for `[gRPC] (ConnectAndCall|Call) (business )?error` lines other than `c=1362`). Arbitrary simulations: `./gradlew :games:<g>:gatlingRun --simulation <FQCN>`.
 
 ## Architecture
 

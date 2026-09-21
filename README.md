@@ -79,7 +79,7 @@ docker compose up -d
 
 (Silk Road additionally accepts `ZMQ_PUBLISHER_MOCK=true docker compose up -d` to skip its ZMQ-publisher link.)
 
-(Zero Day's `be-zero-day` container `game-zero-day` needs `LUIGI_WALLET_ENABLED=false`, `SPRING_PROFILES_ACTIVE=dev`, `CHEAT_ENABLED=false`, logging driver `json-file`. Gatling can't see business errors — after each run check `docker logs game-zero-day 2>&1 | grep -c "business error"`; `c=1362` jackpot-pending rejections block a VU's spins for ~60 s and are expected occasionally.)
+(Zero Day's `be-zero-day` container `game-zero-day` needs `LUIGI_WALLET_ENABLED=false` (its `.env.staging` enables the Luigi wallet; any non-`trial` profile then uses the mock wallet), `CHEAT_ENABLED=false`, logging driver `json-file`. Gatling can't see business or internal errors — after each run `docker logs game-zero-day 2>&1 | grep -E "\[gRPC\] (ConnectAndCall|Call) (business )?error" | grep -vc "c=1362"` must print `0`; `c=1362` jackpot-pending rejections block a VU's spins for ~60 s and are expected occasionally, so they are excluded.)
 
 Wait ~30 s for Spring Boot to start.
 

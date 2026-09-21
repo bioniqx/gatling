@@ -23,8 +23,8 @@ import scala.concurrent.duration._
  *
  * Call runs the spin synchronously, then returns an EMPTY PluginResponse: the result and any
  * business error (`c != 0`) are published over ZMQ only. Response time is the real spin time,
- * but Gatling KO covers transport failures only — check the backend log for
- * "business error" (Join and Call lines) after every run.
+ * but Gatling KO covers transport failures only — after every run grep the backend log for
+ * "[gRPC] (ConnectAndCall|Call) (business )?error" lines other than c=1362 (jackpot pending).
  *
  * Defaults (override via -D): users=1000, durationMinutes=60, rampMinutes=2, paceSec=5,
  * requestRate=50, eventCount=100000, grpcHost=localhost, grpcPort=9103, bet=1.00.
@@ -47,11 +47,13 @@ class ZeroDayGrpcSimulation extends Simulation {
   private val grpcPort        = Integer.getInteger("grpcPort", 9103).intValue()
   private val bet             = sys.props.getOrElse("bet", "1.00")
 
-  // The backend rejects an off-ladder bet over ZMQ only (gRPC still OK), so fail fast here.
-  require(
-    scala.util.Try(BigDecimal(bet)).toOption.exists(b => BetLadder.exists(step => (step - b).abs <= BigDecimal("0.001"))),
-    s"-Dbet=$bet is not on the Zero Day bet ladder: ${BetLadder.mkString(", ")}"
-  )
+  // The backend rejects an off-ladder bet over ZMQ only (gRPC still OK), so fail fast here and
+  // send the matched ladder step rather than the raw property.
+  private val betStep: String = scala.util.Try(BigDecimal(bet)).toOption
+    .flatMap(b => BetLadder.find(step => (step - b).abs <= BigDecimal("0.001")))
+    .map(_.toString)
+    .getOrElse(throw new IllegalArgumentException(
+      s"-Dbet=$bet is not on the Zero Day bet ladder: ${BetLadder.mkString(", ")}"))
 
   private val PluginName = "yama_01023"
   private val Zone       = "MiniGame"
@@ -84,7 +86,7 @@ class ZeroDayGrpcSimulation extends Simulation {
   private def buildSpinRequest(userId: String): PluginRequest = {
     val data = new java.util.LinkedHashMap[String, Object]()
     data.put("cmd", Integer.valueOf(1500))
-    data.put("bet", bet)
+    data.put("bet", betStep)
     PluginRequest.newBuilder()
       .setZone(Zone)
       .setPluginName(PluginName)
