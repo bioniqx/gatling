@@ -1,0 +1,13 @@
+# ============================================================================
+# Mutant Merge — Per-Game Override
+# ============================================================================
+#
+# gRPC-only: REST is used only by run-variant.sh's health probe. The local
+# unified dev stack (Stable_Mutant_Merge/docker-compose.yml) clears the context
+# path, so health is GET localhost:3000/health — matches core defaults, nothing
+# to override. The standalone traefik deploy serves it under
+# /api/game/mutant-merge instead; override via CLI if you target that.
+#
+# gRPC endpoint (join + spin) is NOT configured here — the simulation reads
+# -DgrpcHost / -DgrpcPort (default localhost:9104).
+# ============================================================================
