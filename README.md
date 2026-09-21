@@ -28,6 +28,7 @@ Use this as the source of truth for the four shell variables every command below
 | Golden Boat Bonanza | `bonanza`   | `../be-golden-boat-bonanza` | `game-golden-boat-bonanza`   | `3005` | `Basic`, `Soak`, `Grpc`                       |
 | Naga's Fortune 777  | `naga777`  | `../Stable_NAGAS_777`       | `stable-naga_fortune_777`    | `3000` | `Grpc`                                        |
 | Mutant Merge        | `mutantmerge` | `../Stable_Mutant_Merge` | `stable-game-mutant-merge`   | `3000` | `Grpc`                                        |
+| Zero Day            | `zeroday`  | `../be-zero-day`            | `game-zero-day`              | `3000` | `Grpc`                                        |
 
 Backends live in **sibling repos** and aren't built from here. Four more games are stubbed in `settings.gradle` (commented out).
 
@@ -78,6 +79,8 @@ docker compose up -d
 
 (Silk Road additionally accepts `ZMQ_PUBLISHER_MOCK=true docker compose up -d` to skip its ZMQ-publisher link.)
 
+(Zero Day's `be-zero-day` container `game-zero-day` needs `LUIGI_WALLET_ENABLED=false`, `SPRING_PROFILES_ACTIVE=dev`, `CHEAT_ENABLED=false`, logging driver `json-file`. Gatling can't see business errors — after each run check `docker logs game-zero-day 2>&1 | grep -c "business error"`; `c=1362` jackpot-pending rejections block a VU's spins for ~60 s and are expected occasionally.)
+
 Wait ~30 s for Spring Boot to start.
 
 ### 2. Verify the SUT is up
@@ -127,7 +130,7 @@ A green **PASS** banner = the test cleared every threshold. Done.
 
 ```bash
 ./scripts/run-variant.sh \
-  --game <silkroad|bonanza|naga777|mutantmerge> \
+  --game <silkroad|bonanza|naga777|mutantmerge|zeroday> \
   --variant <baseline|target|stress|critical> \
   --simulation <Soak|Stress|Spike|Basic|Grpc> \
   --container <name> \
@@ -137,14 +140,14 @@ A green **PASS** banner = the test cleared every threshold. Done.
 
 | Flag                  | Default     | Required | Notes                                                                |
 |-----------------------|-------------|----------|----------------------------------------------------------------------|
-| `--game`              | —           | ✅       | `silkroad`, `bonanza`, `naga777`, or `mutantmerge`. May also be set via the `GAME` env var. **No default** — running without it fails fast (previously a silent silkroad default was a footgun for bonanza runs). |
+| `--game`              | —           | ✅       | `silkroad`, `bonanza`, `naga777`, `mutantmerge`, or `zeroday`. May also be set via the `GAME` env var. **No default** — running without it fails fast (previously a silent silkroad default was a footgun for bonanza runs). |
 | `--variant`           | —           | ✅       | Picks the CPU/Mem ceiling — see [Variant ceilings](#variant-ceilings). |
 | `--simulation`        | —           | ✅       | Case-insensitive.                                                    |
 | `--container`         | —           | ✅       | Falls back to `--port` if the container doesn't exist.               |
 | `--users`             | `1000`      |          | Concurrent VU count.                                                 |
 | `--duration-minutes`  | `60`        |          | Steady-state duration.                                               |
 | `--ramp-minutes`      | `5`         |          | Ramp-up duration.                                                    |
-| `--port`              | `3005` for bonanza, `3000` for silkroad, naga777 and mutantmerge |          | Forwarded to Gatling as `-Dport=`, used to build the health probe URL, and used as monitor-resources fallback port. Default derives from `--game`. |
+| `--port`              | `3005` for bonanza, `3000` for silkroad, naga777, mutantmerge and zeroday |          | Forwarded to Gatling as `-Dport=`, used to build the health probe URL, and used as monitor-resources fallback port. Default derives from `--game`. |
 | `--parallel`          | off         |          | Soak: all VUs at once (no ramp).                                     |
 | `--requests`          | unset       |          | Basic: total requests across all VUs.                                |
 | `--scenario`          | unset       |          | Basic: endpoint or mode — see [Test one endpoint](#test-one-endpoint-at-a-time). |
@@ -169,7 +172,7 @@ A green **PASS** banner = the test cleared every threshold. Done.
 >
 > **`Grpc` runs on a different Gatling runtime than the REST simulations** (3.9.5 + the community gRPC plugin, no VU cap) — see [gRPC runtimes](#grpc-runtimes).
 >
-> **`Grpc` defaults differ:** `rampMinutes=2` (not 5), `paceSec=5`, `requestRate=50` req/s floor, `eventCount=100000` successful-request floor. Defaults to `grpcHost=localhost`; `grpcPort=9091` (bonanza) / `9096` (naga777) / `9104` (mutantmerge). The wrapper doesn't expose `--grpc-host` / `--grpc-port` — if you need to override the gRPC endpoint, [run via Gradle directly](#advanced-runs-without-the-wrapper).
+> **`Grpc` defaults differ:** `rampMinutes=2` (not 5), `paceSec=5`, `requestRate=50` req/s floor, `eventCount=100000` successful-request floor. Defaults to `grpcHost=localhost`; `grpcPort=9091` (bonanza) / `9096` (naga777) / `9104` (mutantmerge) / `9103` (zeroday). The wrapper doesn't expose `--grpc-host` / `--grpc-port` — if you need to override the gRPC endpoint, [run via Gradle directly](#advanced-runs-without-the-wrapper).
 
 ### Standard examples
 
@@ -215,6 +218,12 @@ A green **PASS** banner = the test cleared every threshold. Done.
   --variant target --simulation Grpc \
   --users 1000 --duration-minutes 60 --ramp-minutes 2 \
   --container stable-game-mutant-merge
+
+# Zero Day — gRPC production gate (port 3000 + health /api/game/zeroday/actuator/health auto-derived)
+./scripts/run-variant.sh --game zeroday \
+  --variant target --simulation Grpc \
+  --users 1000 --duration-minutes 60 --ramp-minutes 2 \
+  --container game-zero-day
 ```
 
 ---
@@ -401,7 +410,7 @@ These reach simulations only when you call `./gradlew :games:…` directly. Only
 
 **Silkroad-only:** `usersStart`, `usersEnd` (Stress); `baseline`, `spike`, `spikeDurationSec`, `cycles`, `cycleIntervalMinutes` (Spike).
 
-**Bonanza, Naga777 & Mutant Merge:** `grpcHost`, `grpcPort` (gRPC); `paceSec`, `requestRate`, `eventCount` (bonanza Soak + all gRPC sims). **Naga777-only:** `coinValue`, `coinPerLine` (bet shape — server derives bet = coinValue × coinPerLine × 5). **Mutant Merge-only:** `betLevelId` (1-based index into the bet ladder, default 3 = $1.00), `superBet` (`true` = super bet, debit × 1.2).
+**Bonanza, Naga777, Mutant Merge & Zero Day:** `grpcHost`, `grpcPort` (gRPC); `paceSec`, `requestRate`, `eventCount` (bonanza Soak + all gRPC sims). **Naga777-only:** `coinValue`, `coinPerLine` (bet shape — server derives bet = coinValue × coinPerLine × 5). **Mutant Merge-only:** `betLevelId` (1-based index into the bet ladder, default 3 = $1.00), `superBet` (`true` = super bet, debit × 1.2). **Zero Day-only:** `bet` (decimal string on the bet ladder 0.20–100.00, default 1.00; off-ladder values fail at load).
 
 > `usersStart` / `usersEnd` / `baseline` are users **per minute** — the simulation divides by 60 internally.
 
@@ -475,8 +484,8 @@ Pinned in `build.gradle` at the repo root.
 | Gatling (REST sims)      | **3.15.0** | silkroad, and bonanza's `Soak` / `Basic`.                                       |
 | Gatling Gradle plugin    | 3.15.0.2   | REST test-run wiring (`io.gatling.gradle`) — the gRPC sims don't use it.        |
 | Gradle wrapper           | 9.2.1      | Bundled — no separate install.                                                  |
-| Scala library            | **2.13.12** | Only by the bonanza, naga777 & mutantmerge gRPC simulations — see [Scala / gRPC](#scala--grpc-simulation). |
-| Gatling (gRPC sims)      | **3.9.5**  | bonanza, naga777 & mutantmerge `Grpc` — see [gRPC runtimes](#grpc-runtimes).           |
+| Scala library            | **2.13.12** | Only by the bonanza, naga777, mutantmerge & zeroday gRPC simulations — see [Scala / gRPC](#scala--grpc-simulation). |
+| Gatling (gRPC sims)      | **3.9.5**  | bonanza, naga777, mutantmerge & zeroday `Grpc` — see [gRPC runtimes](#grpc-runtimes).           |
 | gRPC DSL                 | `com.github.phisgr:gatling-grpc` 0.17.0 | Community plugin, no VU cap. Replaced Gatling's Enterprise-gated gRPC DSL. |
 | gRPC core / Protobuf     | 1.75.0 / 4.32.1 | Generated stubs in `:core` (used only by the gRPC sim).                    |
 | Python                   | 3.9+       | `generate-summary-html.py` (post-run report).                                   |
@@ -500,6 +509,7 @@ entirely: each builds its own Gatling 3.9.5 classpath in a dedicated configurati
 
 - **naga777** is gRPC-only, so its whole module is on 3.9.5 (`gatlingRt` configuration).
 - **mutantmerge** is gRPC-only too, same layout as naga777.
+- **zeroday** is gRPC-only too, same layout as naga777.
 - **bonanza** ships both, so it is split: `src/gatling/java` (REST) stays on 3.15 under the
   Gatling Gradle plugin, while `src/gatlingGrpc/scala` compiles and runs against 3.9.5
   (`gatlingGrpcRt` configuration). The two classpaths never mix.
@@ -568,12 +578,13 @@ stay behind on 3.9.5 unless someone forks the plugin or buys an Enterprise licen
 
 ### Scala / gRPC simulation
 
-The whole harness is Java except for **three files** — the bonanza, naga777 and mutantmerge gRPC tests:
+The whole harness is Java except for **four files** — the bonanza, naga777, mutantmerge and zeroday gRPC tests:
 
 ```
 games/bonanza/src/gatlingGrpc/scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala
 games/naga777/src/gatling/scala/com/rgp/loadtest/naga777/grpc/Naga777GrpcSimulation.scala
 games/mutantmerge/src/gatling/scala/com/rgp/loadtest/mutantmerge/grpc/MutantMergeGrpcSimulation.scala
+games/zeroday/src/gatling/scala/com/rgp/loadtest/zeroday/grpc/ZeroDayGrpcSimulation.scala
 ```
 
 **Why a Scala file at all?** The gRPC sims use the community plugin `com.github.phisgr:gatling-grpc` on Gatling 3.9.5 (see [gRPC runtimes](#grpc-runtimes)), and that plugin only ships a Scala DSL — so these simulations are written in Scala. Their payloads are still the Java proto stubs and the MessagePack `Codec` from `:core`.

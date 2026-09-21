@@ -13,7 +13,7 @@ Docs: `README.md` (English, authoritative reference), `HUONG-DAN.md` + `docs/get
 ```bash
 # Compile everything (fastest full check; includes Gatling source sets)
 ./gradlew :core:classes :games:silkroad:gatlingClasses :games:bonanza:gatlingClasses \
-  :games:bonanza:gatlingGrpcClasses :games:naga777:gatlingClasses :games:mutantmerge:gatlingClasses
+  :games:bonanza:gatlingGrpcClasses :games:naga777:gatlingClasses :games:mutantmerge:gatlingClasses :games:zeroday:gatlingClasses
 
 # Run a simulation directly (dev iteration — no monitors, no verdict)
 ./gradlew :games:silkroad:soak   -Dusers=5 -DdurationMinutes=1 -DrampMinutes=1
@@ -24,6 +24,7 @@ Docs: `README.md` (English, authoritative reference), `HUONG-DAN.md` + `docs/get
 ./gradlew :games:bonanza:grpc    -Dusers=5 -DdurationMinutes=1 -DgrpcHost=localhost -DgrpcPort=9091
 ./gradlew :games:naga777:grpc   -Dusers=5 -DdurationMinutes=1 -DgrpcHost=localhost -DgrpcPort=9096
 ./gradlew :games:mutantmerge:grpc -Dusers=5 -DdurationMinutes=1 -DrequestRate=0 -DeventCount=0 -DgrpcPort=9104
+./gradlew :games:zeroday:grpc     -Dusers=5 -DdurationMinutes=1 -DrequestRate=0 -DeventCount=0 -DgrpcPort=9103
 
 # Full instrumented run (monitors + Gatling + verdict.json + summary.html)
 ./scripts/run-variant.sh --game silkroad --variant target --simulation Soak \
@@ -34,7 +35,7 @@ Docs: `README.md` (English, authoritative reference), `HUONG-DAN.md` + `docs/get
   -DresourceCsv=... -DhealthCsv=... -DgatlingLog=... -Dusers=1000 -DdurationSec=3900
 ```
 
-Simulation aliases per game: silkroad has `soak/stress/spike/basic`; bonanza has `soak/basic/grpc` (no Stress/Spike yet); naga777 has `grpc` only (no REST spin — gRPC :9096, bet via `-DcoinValue`/`-DcoinPerLine`); mutantmerge has `grpc` only (gRPC :9104, pluginName `yama_01024`, bet via 1-based `-DbetLevelId`, optional `-DsuperBet=true`; Spin is KO when the response body has a non-zero `c` error code). Arbitrary simulations: `./gradlew :games:<g>:gatlingRun --simulation <FQCN>`.
+Simulation aliases per game: silkroad has `soak/stress/spike/basic`; bonanza has `soak/basic/grpc` (no Stress/Spike yet); naga777 has `grpc` only (no REST spin — gRPC :9096, bet via `-DcoinValue`/`-DcoinPerLine`); mutantmerge has `grpc` only (gRPC :9104, pluginName `yama_01024`, bet via 1-based `-DbetLevelId`, optional `-DsuperBet=true`; Spin is KO when the response body has a non-zero `c` error code); zeroday has `grpc` only (gRPC :9103, pluginName `yama_01023`, bet via `-Dbet` on the 25-step ladder, validated at load; Call returns an empty ack — business errors go over ZMQ, so grep the backend log for `business error` (Join and Call)). Arbitrary simulations: `./gradlew :games:<g>:gatlingRun --simulation <FQCN>`.
 
 ## Architecture
 
@@ -51,6 +52,7 @@ Simulation aliases per game: silkroad has `soak/stress/spike/basic`; bonanza has
 - **gRPC simulations run on a different Gatling than the REST ones.** Gatling 3.15's first-party gRPC DSL is Enterprise-gated and aborts above 5 VUs / 5 minutes, so the gRPC sims were moved to the community plugin `com.github.phisgr:gatling-grpc` 0.17.0 on Gatling 3.9.5 (Scala core DSL, no cap). `io.gatling.gradle` 3.9.5.x breaks on Gradle 9, so each builds its own classpath and runs via `JavaExec`:
   - `games/naga777/src/gatling/scala/Naga777GrpcSimulation.scala` — whole module on 3.9.5 (`gatlingRt`).
   - `games/mutantmerge/src/gatling/scala/MutantMergeGrpcSimulation.scala` — same layout as naga777.
+  - `games/zeroday/src/gatling/scala/ZeroDayGrpcSimulation.scala` — same layout as naga777.
   - `games/bonanza/src/gatlingGrpc/scala/BonanzaGrpcSimulation.scala` — 3.9.5 (`gatlingGrpcRt`); bonanza's Java REST sims in `src/gatling/java` stay on 3.15 under the Gatling Gradle plugin.
   - silkroad is REST-only and stays on 3.15 (HTTP DSL is uncapped).
   - The community plugin is archived upstream and will not support Gatling 3.10+. See README → gRPC runtimes.
