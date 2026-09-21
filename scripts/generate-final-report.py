@@ -63,15 +63,29 @@ def load_verdict(variant_dir: Path) -> Optional[dict]:
 
 
 def load_stats_json(variant_dir: Path) -> Optional[dict]:
-    """Load gatling-report/js/stats.json — authoritative Gatling output."""
+    """Load gatling-report/js/stats.json — authoritative Gatling output.
+
+    Returns the inner `stats` node, which is where the metric objects live; the file's top
+    level only carries the group's name/path plus that node. Only the Gatling used by the gRPC
+    simulations writes this file at all — Gatling 3.15 (the REST games) ships `stats.js` and no
+    JSON, so those variants fall back to N/A rows.
+    """
     path = variant_dir / "gatling-report" / "js" / "stats.json"
     if not path.exists():
         return None
     try:
         with open(path) as f:
-            return json.load(f)
+            doc = json.load(f)
     except Exception:
         return None
+    if not isinstance(doc, dict):
+        return None
+    inner = doc.get("stats")
+    return inner if isinstance(inner, dict) else doc
+
+
+def _round2(v):
+    return round(v, 2) if isinstance(v, (int, float)) and not isinstance(v, bool) else v
 
 
 def extract_gatling_metrics(stats: dict) -> dict:
@@ -100,7 +114,8 @@ def extract_gatling_metrics(stats: dict) -> dict:
         "ok_count":       ok,
         "ko_count":       ko,
         "ko_pct":         ko_pct,
-        "throughput_rps": get(["meanNumberOfRequestsPerSecond", "total"]),
+        # Gatling reports this as a raw float; round it so the table doesn't print 17 decimals.
+        "throughput_rps": _round2(get(["meanNumberOfRequestsPerSecond", "total"])),
     }
 
 
@@ -182,6 +197,9 @@ def pass_fail(v: Optional[bool]) -> str:
 
 def render_report(variants_dir: Path, host: str, port: str) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # The report used to hard-code Silk Road; the game is just the variants dir's name.
+    game = variants_dir.name or "unknown"
+    repo_root = Path(__file__).resolve().parent.parent
 
     variant_data: dict[str, dict] = {}
     for v in VARIANT_ORDER:
@@ -277,12 +295,11 @@ def render_report(variants_dir: Path, host: str, port: str) -> str:
     tgt_link = tgt.get("link", NA)
 
     lines = [
-        f"# Report — Load Test Production Readiness (Silk Road Caravans)",
+        f"# Report — Load Test Production Readiness ({game})",
         f"",
         f"**Date:** {now}",
-        f"**SUT:** be-silk-road-caravans @ {host}:{port}",
-        f"**Source:** /Users/rgp/RGP-Workspace/rgp-game-load-test",
-        f"**Test plan:** docs/plans/plan-260511-load-test-production-readiness.md",
+        f"**SUT:** {game} @ {host}:{port}",
+        f"**Source:** {repo_root}",
         f"",
         f"---",
         f"",

@@ -1,3 +1,45 @@
 /target
+
 /.mvn/wrapper/*.jar
 target/variants/
+# Build output
+/build/
+**/build/
+/.gradle/
+**/.gradle/**
+/out/
+/target/
+
+# IDE
+/.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# App
+*.log
+/logs/
+.env
+.env.local
+
+# Spring tooling
+HELP.md
+/docs/
+/bin/
+
+/CLAUDE.md
+/.codex*
+/AGENTS.md
+/.claude/*
+/graphify-out/
+/.video_agent/
+
+# Python
+__pycache__/
+*.pyc
