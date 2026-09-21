@@ -2,7 +2,7 @@
 # Orchestrate a full load-test variant run: monitoring + Gatling + threshold verification.
 #
 # Usage:
-#   run-variant.sh --game <silkroad|bonanza|naga777|mutantmerge> \
+#   run-variant.sh --game <silkroad|bonanza|naga777|mutantmerge|zeroday> \
 #                  --variant <name> --simulation <Soak|Stress|Spike|Basic> \
 #                  --users <N> --duration-minutes <N> --ramp-minutes <N> \
 #                  --container <docker-container-name>
@@ -53,7 +53,7 @@ done
 # Game must be specified explicitly via --game or GAME env var. No silent default.
 GAME="${GAME_ARG:-${GAME:-}}"
 if [[ -z "$GAME" ]]; then
-  echo "ERROR: --game <silkroad|bonanza|naga777|mutantmerge> required (or set GAME env var)" >&2
+  echo "ERROR: --game <silkroad|bonanza|naga777|mutantmerge|zeroday> required (or set GAME env var)" >&2
   echo "       Example: --game bonanza  OR  GAME=bonanza $0 ..." >&2
   exit 1
 fi
@@ -73,6 +73,7 @@ if [[ -z "$PORT" ]]; then
     bonanza)   PORT=3005 ;;
     naga777)  PORT=3000 ;;
     mutantmerge) PORT=3000 ;;
+    zeroday)  PORT=3000 ;;
     silkroad) PORT=3000 ;;
     *)        PORT=3000 ;;
   esac
@@ -86,6 +87,7 @@ case "$GAME" in
   naga777)  HEALTH_URL="http://localhost:${PORT}/health" ;;
   # Unified dev stack clears the context path; the traefik deploy uses /api/game/mutant-merge/health.
   mutantmerge) HEALTH_URL="http://localhost:${PORT}/health" ;;
+  zeroday)  HEALTH_URL="http://localhost:${PORT}/api/game/zeroday/actuator/health" ;;
   silkroad) HEALTH_URL="http://localhost:${PORT}/actuator/health" ;;
   *)        HEALTH_URL="http://localhost:${PORT}/actuator/health" ;;
 esac
