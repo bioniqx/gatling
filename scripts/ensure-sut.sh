@@ -48,58 +48,58 @@ if container_running || is_healthy; then
   exit 0
 fi
 
-log "SUT for '${GAME}' is not running (container '${CONTAINER}' is down, ${HEALTH_URL} is not healthy)."
+log "The ${GAME} game server isn't running (no running container '${CONTAINER}', and ${HEALTH_URL} doesn't answer)."
 
-[[ -f "$COMPOSE_SRC" ]] || die "games/${GAME}/ has no ${COMPOSE_FILE} — start the backend manually, then re-run."
-[[ -t 0 ]] || die "no terminal to ask where the source is. Start it manually, then re-run:
+[[ -f "$COMPOSE_SRC" ]] || die "${GAME} can't be started automatically (games/${GAME}/ has no ${COMPOSE_FILE}). Start the game server yourself, then run again."
+[[ -t 0 ]] || die "can't ask where the source code is (no terminal). Start the game server yourself, then run again:
   cp ${COMPOSE_SRC} <source-dir>/ && cd <source-dir> && ${START_CMD}"
-docker info >/dev/null 2>&1 || die "Docker is not running — start Docker, then re-run."
+docker info >/dev/null 2>&1 || die "Docker isn't running. Open Docker Desktop, wait until it's ready, then run again."
 
 echo "How do you want to start it?"
-echo "  1) Use a local source directory"
-echo "  2) Clone a git repository (branch main) into a temp directory"
-echo "  q) Quit"
+echo "  1) The game's source code is on this machine (you paste the folder path)"
+echo "  2) Download the source code from git, branch main (you paste the git URL)"
+echo "  q) Cancel"
 read -r -p "Choice [1/2/q]: " CHOICE
 
 case "$CHOICE" in
   1)
     # No -r: unescapes "\ " in paths dragged in from Finder.
-    read -p "Source directory: " SOURCE_DIR
+    read -p "Folder with the game's source code: " SOURCE_DIR
     SOURCE_DIR="${SOURCE_DIR//[\'\"]/}"
     SOURCE_DIR="${SOURCE_DIR/#\~/$HOME}"
     ;;
   2)
     read -r -p "Git URL: " GIT_URL
     SOURCE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/${GAME}-sut.XXXXXX")"
-    log "Cloning ${GIT_URL} (main) into ${SOURCE_DIR}"
-    git clone --branch main --single-branch "$GIT_URL" "$SOURCE_DIR" || die "git clone failed (see above)."
+    log "Downloading ${GIT_URL} (branch main) into ${SOURCE_DIR}"
+    git clone --branch main --single-branch "$GIT_URL" "$SOURCE_DIR" || die "couldn't download the source code (see the git error above)."
     ;;
   *)
-    die "aborted."
+    log "Cancelled."; exit 1
     ;;
 esac
 
-[[ -d "$SOURCE_DIR" ]] || die "not a directory: ${SOURCE_DIR}"
-[[ -f "${SOURCE_DIR}/Dockerfile" ]] || die "no Dockerfile in ${SOURCE_DIR} — point at the backend repo root."
+[[ -d "$SOURCE_DIR" ]] || die "folder not found: ${SOURCE_DIR}"
+[[ -f "${SOURCE_DIR}/Dockerfile" ]] || die "no Dockerfile in ${SOURCE_DIR}. Paste the game backend's top folder (the one that has the Dockerfile)."
 
 TARGET="${SOURCE_DIR}/${COMPOSE_FILE}"
 if [[ -f "$TARGET" ]] && ! cmp -s "$COMPOSE_SRC" "$TARGET"; then
   mv "$TARGET" "${TARGET}.bak"
-  log "Existing ${COMPOSE_FILE} differs — backed up to ${TARGET}.bak"
+  log "That folder already had a different ${COMPOSE_FILE}; the old one is kept as ${TARGET}.bak"
 fi
 cp "$COMPOSE_SRC" "$TARGET"
 
-log "Starting SUT in ${SOURCE_DIR}: ${START_CMD}"
+log "Starting the game server (the first time can take a few minutes): ${START_CMD}"
 (cd "$SOURCE_DIR" && HTTP_PORT="$PORT" docker compose -f "$COMPOSE_FILE" up -d --build) ||
-  die "docker compose up failed (see above). If a port is already allocated, stop the stack holding it and re-run."
+  die "couldn't start the game server (see the error above). If it says a port is already in use, stop the other game's containers and run again."
 
-log "Waiting up to ${HEALTH_TIMEOUT_SEC}s for ${HEALTH_URL}"
+log "Waiting for the server to answer ${HEALTH_URL} (up to ${HEALTH_TIMEOUT_SEC}s)"
 DEADLINE=$((SECONDS + HEALTH_TIMEOUT_SEC))
 until is_healthy; do
   if (( SECONDS >= DEADLINE )); then
     docker logs --tail 50 "$CONTAINER" >&2 || true
-    die "SUT not healthy after ${HEALTH_TIMEOUT_SEC}s — last 50 container log lines above."
+    die "the server didn't come up within ${HEALTH_TIMEOUT_SEC}s. Its last 50 log lines are above."
   fi
   sleep 3
 done
-log "SUT is up."
+log "Game server is up."

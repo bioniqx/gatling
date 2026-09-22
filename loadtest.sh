@@ -29,7 +29,7 @@ choose() {
       echo "$n"
       return
     fi
-    echo "  Pick a number between 1 and $#." >&2
+    echo "  Please type a number from 1 to $#." >&2
   done
 }
 
@@ -43,7 +43,7 @@ ask_number() {
       echo "$value"
       return
     fi
-    echo "  Enter a whole number >= $min." >&2
+    echo "  Please type a whole number (at least $min)." >&2
   done
 }
 
@@ -62,37 +62,47 @@ container_running() {
 
 sim_label() {
   case "$1" in
-    Soak)   echo "Soak    ramp up, then hold steady load" ;;
-    Stress) echo "Stress  keep ramping to find the breaking point" ;;
-    Spike)  echo "Spike   steady load plus bursts of extra users" ;;
-    Basic)  echo "Basic   hammer a single endpoint" ;;
-    Grpc)   echo "Grpc    gRPC soak on the plugin path the FE uses" ;;
+    Soak)   echo "Soak    steady load for a while (finds slowdowns and memory leaks)" ;;
+    Stress) echo "Stress  keep adding players until the server struggles" ;;
+    Spike)  echo "Spike   normal load with sudden rushes of players" ;;
+    Basic)  echo "Basic   call one API many times" ;;
+    Grpc)   echo "gRPC    steady load over gRPC, the way the real game client connects" ;;
   esac
 }
 
-[[ -t 0 ]] || { echo "loadtest.sh is interactive — in CI, call scripts/run-variant.sh directly." >&2; exit 1; }
+variant_label() {
+  case "$1" in
+    baseline) echo "CPU under 50%, memory under 60%  (baseline: lots of spare room)" ;;
+    target)   echo "CPU under 70%, memory under 80%  (target: release standard)" ;;
+    stress)   echo "CPU under 85%, memory under 90%  (stress: heavy load)" ;;
+    critical) echo "CPU under 95%, memory under 95%  (critical: near the limit)" ;;
+  esac
+}
 
-echo "== Game ==  (● running  ○ not running)"
+[[ -t 0 ]] || { echo "loadtest.sh needs a terminal to ask questions. In CI, run scripts/run-variant.sh directly." >&2; exit 1; }
+
+echo "== Which game do you want to test? ==  (● server running  ○ server not running)"
 LABELS=()
 for row in "${GAMES[@]}"; do
   IFS='|' read -r id name container _ <<< "$row"
   mark="○"
   if container_running "$container"; then mark="●"; fi
-  LABELS+=("$mark $name ($id)")
+  LABELS+=("$mark $name")
 done
 i=$(choose "Game" "${LABELS[@]}")
 IFS='|' read -r GAME GAME_NAME CONTAINER SIMS SCENARIOS <<< "${GAMES[i-1]}"
 
 echo
-echo "== Simulation =="
+echo "== What kind of test? =="
 read -r -a SIM_LIST <<< "$SIMS"
 if (( ${#SIM_LIST[@]} == 1 )); then
   SIMULATION="${SIM_LIST[0]}"
-  echo "  $(sim_label "$SIMULATION")  (the only one $GAME_NAME has)"
+  echo "  $(sim_label "$SIMULATION")"
+  echo "  (the only test type $GAME_NAME has)"
 else
   SIM_LABELS=()
   for sim in "${SIM_LIST[@]}"; do SIM_LABELS+=("$(sim_label "$sim")"); done
-  i=$(choose "Simulation" "${SIM_LABELS[@]}")
+  i=$(choose "Test type" "${SIM_LABELS[@]}")
   SIMULATION="${SIM_LIST[i-1]}"
 fi
 
@@ -105,43 +115,44 @@ DEFAULT_RAMP=5
 [[ "$SIMULATION" == Grpc ]] && DEFAULT_RAMP=2
 
 echo
-echo "== Load =="
+echo "== How big should the test be? =="
 if [[ "$SIMULATION" == Basic ]]; then
   read -r -a SCENARIO_LIST <<< "$SCENARIOS"
-  i=$(choose "Scenario" "${SCENARIO_LIST[@]}")
+  i=$(choose "Which API" "${SCENARIO_LIST[@]}")
   SCENARIO="${SCENARIO_LIST[i-1]}"
-  USERS=$(ask_number "Users" 500 1)
-  REQUESTS=$(ask_number "Total requests" 5000 1)
+  USERS=$(ask_number "Number of players (virtual users)" 500 1)
+  REQUESTS=$(ask_number "Total number of requests" 5000 1)
   DURATION=1
   RAMP=0
 else
-  i=$(choose "Load profile" \
-    "Smoke             10 users,  1 min, no ramp     (variant target)" \
-    "Quick check      200 users,  5 min, 1 min ramp  (variant baseline)" \
-    "Production gate 1000 users, 60 min, ${DEFAULT_RAMP} min ramp  (variant target)" \
-    "Custom")
+  i=$(choose "Size" \
+    "Smoke         10 players for 1 minute (just checks that it works)" \
+    "Quick check   200 players for 5 minutes" \
+    "Full test     1000 players for 60 minutes (the release check)" \
+    "Custom        choose the numbers yourself")
   case "$i" in
     1) USERS=10;   DURATION=1;  RAMP=0 ;;
     2) USERS=200;  DURATION=5;  RAMP=1; VARIANT=baseline ;;
     3) USERS=1000; DURATION=60; RAMP=$DEFAULT_RAMP ;;
     4)
-      USERS=$(ask_number "Users" 1000 1)
-      DURATION=$(ask_number "Duration (minutes)" 60 1)
-      RAMP=$(ask_number "Ramp-up (minutes)" "$DEFAULT_RAMP" 0)
-      if [[ "$SIMULATION" == Soak ]] && ask_yes_no "Start all users at once (skips the ramp)?" n; then
+      USERS=$(ask_number "Number of players (virtual users)" 1000 1)
+      DURATION=$(ask_number "Test length in minutes (not counting warm-up)" 60 1)
+      RAMP=$(ask_number "Warm-up minutes (players join gradually)" "$DEFAULT_RAMP" 0)
+      if [[ "$SIMULATION" == Soak ]] && ask_yes_no "Let all players join at once instead of gradually?" n; then
         PARALLEL=true
       fi
+      echo "  When does the test pass? The server's CPU and memory must stay:" >&2
       VARIANTS=(baseline target stress critical)
-      i=$(choose "Variant (pass/fail CPU / Mem p95 ceiling)" \
-        "baseline  CPU 50% / Mem 60%  headroom check" \
-        "target    CPU 70% / Mem 80%  production gate" \
-        "stress    CPU 85% / Mem 90%  saturation study" \
-        "critical  CPU 95% / Mem 95%  pre-failure check")
+      i=$(choose "Pass limit" \
+        "$(variant_label baseline)" \
+        "$(variant_label target)" \
+        "$(variant_label stress)" \
+        "$(variant_label critical)")
       VARIANT="${VARIANTS[i-1]}"
       while true; do
-        read -r -p "HTTP port [game default]: " PORT || exit 1
+        read -r -p "Game server HTTP port [Enter = usual port for this game]: " PORT || exit 1
         [[ -z "$PORT" || "$PORT" =~ ^[0-9]+$ ]] && break
-        echo "  Enter a port number, or press Enter for the default." >&2
+        echo "  Please type a port number, or just press Enter." >&2
       done
       ;;
   esac
@@ -155,21 +166,23 @@ ARGS=(--game "$GAME" --variant "$VARIANT" --simulation "$SIMULATION"
 [[ "$PARALLEL" == true ]] && ARGS+=(--parallel)
 
 if [[ "$SIMULATION" == Basic ]]; then
-  LOAD="$USERS users, $REQUESTS requests on '$SCENARIO'"
+  SIZE="$USERS players sending $REQUESTS requests in total to '$SCENARIO'"
 elif [[ "$PARALLEL" == true ]]; then
-  LOAD="$USERS users all at once, $DURATION min (~$DURATION min total)"
+  SIZE="$USERS players, all joining at once, for $DURATION min"
+elif (( RAMP == 0 )); then
+  SIZE="$USERS players for $DURATION min, no warm-up"
 else
-  LOAD="$USERS users, $DURATION min + $RAMP min ramp (~$((DURATION + RAMP)) min total)"
+  SIZE="$USERS players for $DURATION min after a $RAMP-min warm-up (about $((DURATION + RAMP)) min in total)"
 fi
 
 echo
-echo "== Ready =="
-echo "  Game        $GAME_NAME ($GAME), container $CONTAINER"
-echo "  Simulation  $SIMULATION"
-echo "  Variant     $VARIANT"
-echo "  Load        $LOAD"
-echo "  Command     ./scripts/run-variant.sh $(printf '%q ' "${ARGS[@]}")"
-ask_yes_no "Start the load test?" y || { echo "Cancelled."; exit 0; }
+echo "== Check before starting =="
+echo "  Game         $GAME_NAME (server container: $CONTAINER)"
+echo "  Test type    ${SIMULATION/Grpc/gRPC}"
+echo "  Size         $SIZE"
+echo "  Pass limit   $(variant_label "$VARIANT")"
+echo "  Same as      ./scripts/run-variant.sh $(printf '%q ' "${ARGS[@]}")"
+ask_yes_no "Start now?" y || { echo "Cancelled — nothing was run."; exit 0; }
 
 MARKER=$(mktemp)
 EXIT=0
@@ -177,7 +190,7 @@ EXIT=0
 
 SUMMARY=$(find "$REPO_ROOT/target/variants/$GAME" -name summary.html -newer "$MARKER" 2>/dev/null | head -1 || true)
 rm -f "$MARKER"
-if [[ -n "$SUMMARY" ]] && ask_yes_no "Open summary.html?" y; then
+if [[ -n "$SUMMARY" ]] && ask_yes_no "Open the result report (summary.html) in your browser?" y; then
   if command -v open >/dev/null; then open "$SUMMARY"; else xdg-open "$SUMMARY"; fi
 fi
 exit "$EXIT"
