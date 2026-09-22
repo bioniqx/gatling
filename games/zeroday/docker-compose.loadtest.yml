@@ -1,0 +1,66 @@
+# Local SUT for rgp-game-load-test: Zero Day + its own Mongo/Redis/RabbitMQ.
+# Copy into the be-zero-day repo root, then: docker compose -f docker-compose.loadtest.yml up -d --build
+# Host HTTP port defaults to 3000; set HTTP_PORT=3010 if another game already holds 3000.
+name: zeroday-loadtest
+
+services:
+  game-zero-day:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: game-zero-day:latest
+    container_name: game-zero-day
+    mem_limit: 768m
+    memswap_limit: 768m
+    env_file:
+      - .env.staging
+    environment:
+      JVM_OPTS: "-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      MONGODB_URI: mongodb://mongo:27017/zero-day
+      REDIS_HOST: redis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "13"
+      RABBITMQ_HOST: rabbitmq
+      BALANCE_AMQP_HOST: rabbitmq
+      LUIGI_WALLET_ENABLED: "false"
+      CHEAT_ENABLED: "false"
+      # No ZMQ subscriber locally; PUB sockets connect and drop messages.
+      ZMQ_PUBLISHER_ADDRESS: tcp://127.0.0.1:10004
+      ZMQ_INTERNAL_PUBLISHER_ADDRESS: tcp://127.0.0.1:11004
+    ports:
+      - "${HTTP_PORT:-3000}:3000"
+      - "9103:9103"
+    logging:
+      driver: json-file
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: games
+      RABBITMQ_DEFAULT_PASS: "123456"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      retries: 30

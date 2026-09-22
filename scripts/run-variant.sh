@@ -97,6 +97,9 @@ DURATION_SEC=$(( DURATION_MINUTES * 60 + RAMP_MINUTES * 60 + 120 ))  # match max
 echo "[run-variant] Game: ${GAME}  Variant: ${VARIANT}  Simulation: ${SIMULATION}  Container: ${CONTAINER}  Port: ${PORT}"
 echo "[run-variant] Health probe URL: ${HEALTH_URL}"
 
+# 0. Make sure the SUT is up — offers to start it from a source dir or a git clone if not.
+"${SCRIPT_DIR}/ensure-sut.sh" --game "$GAME" --container "$CONTAINER" --port "$PORT" --health-url "$HEALTH_URL"
+
 # 1. Create output directory (grouped by game so multi-game runs don't collide)
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 OUT_DIR="${REPO_ROOT}/target/variants/${GAME}/${VARIANT}-${TIMESTAMP}"

@@ -72,6 +72,8 @@ export PORT=3000
 
 ### 1. Start the backend
 
+> **Optional for naga777, mutantmerge, silkroad and zeroday** (the games that ship `games/<game>/docker-compose.loadtest.yml`). If the SUT isn't up when you run step 3, `run-variant.sh` asks for either the backend's source directory or its git URL (cloned from `main` into a temp directory), copies the compose file in (a differing existing one is backed up to `.bak`), runs `docker compose up -d --build`, and waits for the health probe before testing. Without a terminal (CI) it fails with the manual start command instead.
+
 ```bash
 cd "$BACKEND_DIR"
 docker compose up -d
@@ -548,6 +550,7 @@ stay behind on 3.9.5 unless someone forks the plugin or buys an Enterprise licen
 │           └── scala/            BonanzaGrpcSimulation.scala — gRPC sim (Scala)
 ├── scripts/
 │   ├── run-variant.sh            ⭐ canonical entry point
+│   ├── ensure-sut.sh             starts the SUT from source dir / git clone if it isn't up
 │   ├── monitor-resources.sh      docker stats → resource.csv
 │   ├── health-poll.sh            HTTP probe → health.csv
 │   └── generate-summary-html.py  builds summary.html

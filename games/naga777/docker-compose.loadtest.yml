@@ -1,0 +1,62 @@
+# Local SUT for rgp-game-load-test: Naga's Fortune 777 + its own Mongo/Redis.
+# Copy into Stable_NAGAS_777/stable-be-naga-fortune-777 (the dir with the Dockerfile),
+# then: docker compose -f docker-compose.loadtest.yml up -d --build
+# Host HTTP port defaults to 3000; set HTTP_PORT=3010 if another game already holds 3000.
+# gRPC is fixed at 9096 (the Gatling Grpc simulation dials it directly, no wsproxy needed).
+name: naga777-loadtest
+
+services:
+  game-naga-fortune-777:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: game-naga-fortune-777:latest
+    container_name: stable-naga_fortune_777
+    mem_limit: 768m
+    memswap_limit: 768m
+    env_file:
+      - .env.staging
+    environment:
+      # .env.staging ships SPRING_PROFILES_ACTIVE=prod, whose "prod" profile group excludes
+      # MockWalletAdapter (@Profile("!prod & !staging") — a misconfigured wallet gateway must
+      # fail loudly on a real deploy). "redis" alone still gets the Redis-backed session repo
+      # without shutting the mock wallet off.
+      SPRING_PROFILES_ACTIVE: redis
+      # Health probe is /health with no context-path (matches the load-test harness default).
+      SERVER_SERVLET_CONTEXT_PATH: ""
+      MONGO_URI: mongodb://mongo:27017/game-naga-fortune-777
+      MONGO_DB: game-naga-fortune-777
+      REDIS_HOST: redis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "0"
+      # Mock wallet (Redis-backed, auto-seeds 10,000,000 per player) — no Luigi/auth service needed.
+      WALLET_GATEWAY: mock
+      CHEAT_ENABLED: "false"
+      # StandaloneZmqPublisher only ever CONNECTs its PUB socket (wsproxy would bind the SUB
+      # peer); with no listener here it just queues and drops frames — harmless for the test.
+      ZMQ_PUBLISHER_ADDRESS: tcp://127.0.0.1:10004
+    ports:
+      - "${HTTP_PORT:-3000}:3000"
+      - "9096:9096"
+    logging:
+      driver: json-file
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20

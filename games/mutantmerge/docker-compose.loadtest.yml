@@ -1,0 +1,59 @@
+# Local SUT for rgp-game-load-test: Mutant Merge + its own Mongo/Redis. No wsproxy —
+# the Gatling Grpc simulation dials the plugin's gRPC port (9104) directly.
+# Copy into the Stable_Mutant_Merge/be-mutant-merge repo root (the dir with the
+# game's Dockerfile), then: docker compose -f docker-compose.loadtest.yml up -d --build
+# Host HTTP port defaults to 3000; set HTTP_PORT=3010 if another game already holds 3000.
+name: mutantmerge-loadtest
+
+services:
+  game-mutant-merge:
+    build:
+      context: .
+    image: game-mutant-merge:loadtest
+    container_name: stable-game-mutant-merge
+    mem_limit: 768m
+    memswap_limit: 768m
+    environment:
+      SPRING_PROFILES_ACTIVE: ""
+      SERVER_PORT: "3000"
+      SERVER_SERVLET_CONTEXT_PATH: ""
+      GRPC_PORT: "9104"
+      MONGO_URI: mongodb://mongo:27017/game-mutant-merge
+      MONGO_DB: game-mutant-merge
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "12"
+      # No "realWalletAdapter" bean exists in this codebase, so MockWalletAdapter (Redis-backed,
+      # slot:wallet:{agency}:{userId}, default balance 100000.00) is always active unless
+      # wallet.gateway=luigi. Any non-luigi value keeps it on mock — no wallet gateway needed.
+      WALLET_GATEWAY: mock
+      CHEAT_ENABLED: "false"
+      # PUB socket connects out (wsproxy normally binds the SUB side); no wsproxy here, so
+      # point it at a local address with no listener — connect-without-listener is harmless.
+      ZMQ_PUBLISHER_ADDRESS: tcp://127.0.0.1:5557
+    ports:
+      - "${HTTP_PORT:-3000}:3000"
+      - "9104:9104"
+    logging:
+      driver: json-file
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20

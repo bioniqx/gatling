@@ -1,0 +1,51 @@
+# Local SUT for rgp-game-load-test: Silk Road Caravans + its own Mongo/Redis.
+# Copy into the be-silk-road-caravans repo root, then: docker compose -f docker-compose.loadtest.yml up -d --build
+# Host HTTP port defaults to 3000; set HTTP_PORT=3010 if another game already holds 3000.
+name: silkroad-loadtest
+
+services:
+  game-silk-road-caravans:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: game-silk-road-caravans:latest
+    container_name: game-silk-road-caravans
+    mem_limit: 768m
+    memswap_limit: 768m
+    env_file:
+      - .env.staging
+    environment:
+      JVM_OPTS: "-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      MONGODB_URI: mongodb://mongo:27017/silkroadcaravans
+      REDIS_HOST: redis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      LUIGI_WALLET_ENABLED: "false"
+      WALLET_HTTP_ENABLED: "false"
+      CHEAT_ENABLED: "false"
+      # No ZMQ subscriber locally; mock publisher just logs instead of connecting out.
+      ZMQ_PUBLISHER_MOCK: "true"
+    ports:
+      - "${HTTP_PORT:-3000}:3000"
+      - "9093:9093"
+    logging:
+      driver: json-file
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
