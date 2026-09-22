@@ -60,6 +60,8 @@ python3 --version    # 3.9+
 
 A **VU (virtual user)** = one simulated player. A **smoke test** = the smallest possible run.
 
+> **Prefer a menu?** Run `./loadtest.sh` — it walks you through game, simulation and load profile, prints the equivalent `run-variant.sh` command, runs it (starting the SUT if needed) and offers to open `summary.html`. The steps below are the manual equivalent.
+
 Pick your game's row in [Games today](#games-today) and export its variables:
 
 ```bash
@@ -531,6 +533,7 @@ stay behind on 3.9.5 unless someone forks the plugin or buys an Enterprise licen
 
 ```
 .
+├── loadtest.sh                   interactive menu → scripts/run-variant.sh
 ├── build.gradle                  shared Java 17 + version aliases
 ├── settings.gradle               include :core + each game subproject
 ├── config/sla-thresholds.yml     repo-wide pass/fail defaults
@@ -869,6 +872,8 @@ esac
 ```
 
 Pick a path that's cheap (under 50 ms typical) and returns a `2xx` status on a healthy backend. Spring Boot's `/actuator/health` is the safe default if it's exposed; otherwise pick a small read-only endpoint like a static config fetch.
+
+**8.3** Add a row for the game to the `GAMES` table at the top of `loadtest.sh` (id, display name, container, simulations, Basic scenarios) so it shows up in the menu.
 
 ---
 
