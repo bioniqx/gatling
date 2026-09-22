@@ -2,7 +2,7 @@
 
 How to run the naga777 load test and how to read what comes out of it.
 
-Everything here is specific to `naga777`. For the harness as a whole, see [`README.md`](README.md).
+Everything here is specific to `naga777`. For the harness as a whole, see [`../../README.md`](../../README.md).
 
 ---
 
@@ -230,7 +230,7 @@ nohup ./scripts/run-variant.sh --game naga777 \
 tail -f /tmp/naga-gate.log            # follow progress
 ```
 
-**Keep results before cleaning** — `./gradlew clean` deletes `target/`:
+**Keep results before cleaning** — `./gradlew clean` deletes `../../target`:
 
 ```bash
 cp -r "$(ls -1td target/variants/naga777/target-*/ | head -1)" ~/naga-run-$(date +%Y%m%d-%H%M%S)
@@ -327,7 +327,7 @@ that shape.
 | `verdict` | Any of the above fails |
 
 Thresholds come from `../config/sla-thresholds.yml`, with per-game overrides in
-`games/naga777/src/gatling/resources/sla-thresholds.yml` (currently empty — naga777 inherits the
+`src/gatling/resources/sla-thresholds.yml` (currently empty — naga777 inherits the
 core values). Edit the YAML and re-run; no recompile needed.
 
 ---
@@ -412,4 +412,4 @@ threshold verifier understands both.
 support Gatling 3.10+. If the REST simulations are moved to a newer Gatling, the gRPC ones stay
 on 3.9.5 unless someone forks the plugin or buys an Enterprise licence.
 
-For the same details across all games, see [`README.md`](README.md) → gRPC runtimes.
+For the same details across all games, see [`../../README.md`](../../README.md) → gRPC runtimes.

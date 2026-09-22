@@ -24,7 +24,7 @@ New here? Go to [Quick start](#quick-start). A first smoke test takes a few minu
 | **Running tests by hand or from CI**       | Everything above, plus [Running tests](#running-tests) and [Advanced runs](#advanced-runs-without-the-wrapper).                                                                                                      |
 | **Developer adding or changing a game**    | Everything above, plus [Configuration](#configuration), [Project layout](#project-layout), [gRPC runtimes](#grpc-runtimes) and [Add a new game](#add-a-new-game).                                                    |
 
-More reading: [`HUONG-DAN.md`](HUONG-DAN.md) (Vietnamese beginner guide), [`naga777-load-test-guide.md`](naga777-load-test-guide.md) (Naga's Fortune 777: run it and read the results), and [Where to learn more](#where-to-learn-more).
+More reading: [`HUONG-DAN.md`](HUONG-DAN.md) (Vietnamese beginner guide), [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md) (Naga's Fortune 777: run it and read the results), and [Where to learn more](#where-to-learn-more).
 
 Two words used everywhere below:
 
@@ -472,7 +472,7 @@ Bonanza's stateful endpoints (`BonusStart`, `BonusReveal`, `HistoryRounds`, `Rou
 
 **Golden Boat Bonanza.** You must start it yourself (no auto-start). REST calls go to port `3005` under `/golden`, and `Spin` returns **201**. The `Grpc` test needs gRPC port `9091` reachable on `localhost`.
 
-**Naga's Fortune 777.** gRPC only: over HTTP the backend offers nothing but its health check. The spin time measured is the gRPC acknowledgement, because the full spin result is pushed over ZMQ. The server derives the bet as `coinValue × coinPerLine × 5`, which is 75 by default. More detail in [`naga777-load-test-guide.md`](naga777-load-test-guide.md).
+**Naga's Fortune 777.** gRPC only: over HTTP the backend offers nothing but its health check. The spin time measured is the gRPC acknowledgement, because the full spin result is pushed over ZMQ. The server derives the bet as `coinValue × coinPerLine × 5`, which is 75 by default. More detail in [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md).
 
 **Mutant Merge.** gRPC only. The test reads each spin reply and counts a non-zero business code as a failed request, so business errors show up as `KO` in Gatling.
 
@@ -1112,7 +1112,7 @@ Tracked files, grouped. Generated output (`build/`, `target/`) is gitignored.
 | `scripts/monitor-resources.sh` | Samples CPU and memory into a CSV. | `--container <name> [--fallback-port N] [--interval-sec N] --out <csv> --duration-sec N` (interval defaults to 5) | `run-variant.sh` (background) |
 | `scripts/health-poll.sh` | Probes an HTTP URL into a CSV. | `[--url <url>] [--interval-sec N] --out <csv> --duration-sec N` (interval defaults to 2) | `run-variant.sh` (background) |
 | `scripts/generate-summary-html.py` | Builds `summary.html` from one run directory. | `--variant-dir <dir>` | `run-variant.sh`, or by hand after re-verifying |
-| `scripts/generate-final-report.py` | Builds a Markdown compliance report across variants. | `--variants-dir target/variants/<game> --report-out <file.md> [--host localhost] [--port 3000]` | By hand (see `naga777-load-test-guide.md`) |
+| `scripts/generate-final-report.py` | Builds a Markdown compliance report across variants. | `--variants-dir target/variants/<game> --report-out <file.md> [--host localhost] [--port 3000]` | By hand (see `games/naga777/naga777-load-test-guide.md`) |
 
 **`loadtest.sh` presets:**
 
@@ -1624,7 +1624,7 @@ On the short gRPC smoke, Gatling's own `requestRate` / `eventCount` assertions f
 ## Where to learn more
 
 - [`HUONG-DAN.md`](HUONG-DAN.md): step-by-step beginner guide in Vietnamese. It predates `loadtest.sh` and the gRPC-only games, so it covers silkroad and bonanza only. It links to `docs/getting-started.md`, which is not in this repo.
-- [`naga777-load-test-guide.md`](naga777-load-test-guide.md): how to run naga777 and read its results, including `generate-final-report.py`.
+- [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md): how to run naga777 and read its results, including `generate-final-report.py`.
 - [`core/libs/README.md`](core/libs/README.md): where the bundled GaaS JAR comes from and why it is downgraded.
 - Gatling: [EL syntax](https://docs.gatling.io/reference/script/core/session/el/) · [Gradle plugin](https://docs.gatling.io/reference/integrations/build-tools/gradle-plugin/) · [gRPC DSL](https://docs.gatling.io/reference/script/protocols/grpc/). The last one documents the Enterprise-gated first-party DSL, which this repo does **not** use for its gRPC simulations.
 - [`phisgr/gatling-grpc`](https://github.com/phisgr/gatling-grpc): the community gRPC plugin (0.17.0, Gatling 3.9.5) behind all four `Grpc` simulations. It is archived upstream.
@@ -1657,7 +1657,7 @@ Mới dùng lần đầu? Hãy tới [Bắt đầu nhanh](#bắt-đầu-nhanh). 
 | **Chạy test thủ công hoặc từ CI**              | Tất cả các phần trên, thêm [Chạy test](#chạy-test) và [Chạy nâng cao](#chạy-nâng-cao-không-qua-wrapper).                                                                                                            |
 | **Developer thêm hoặc sửa game**               | Tất cả các phần trên, thêm [Cấu hình](#cấu-hình), [Cấu trúc project](#cấu-trúc-project), [Runtime cho gRPC](#runtime-cho-grpc) và [Thêm game mới](#thêm-game-mới).                                                  |
 
-Đọc thêm: [`HUONG-DAN.md`](HUONG-DAN.md) (hướng dẫn tiếng Việt cho người mới), [`naga777-load-test-guide.md`](naga777-load-test-guide.md) (Naga's Fortune 777: cách chạy và đọc kết quả), và [Tài liệu tham khảo thêm](#tài-liệu-tham-khảo-thêm).
+Đọc thêm: [`HUONG-DAN.md`](HUONG-DAN.md) (hướng dẫn tiếng Việt cho người mới), [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md) (Naga's Fortune 777: cách chạy và đọc kết quả), và [Tài liệu tham khảo thêm](#tài-liệu-tham-khảo-thêm).
 
 Hai thuật ngữ dùng xuyên suốt bên dưới:
 
@@ -2105,7 +2105,7 @@ Các endpoint có trạng thái của Bonanza (`BonusStart`, `BonusReveal`, `His
 
 **Golden Boat Bonanza.** Bạn phải tự khởi động game này (không có tự khởi động). Các lời gọi REST đi tới port `3005` dưới `/golden`, và `Spin` trả về **201**. Test `Grpc` cần truy cập được port gRPC `9091` trên `localhost`.
 
-**Naga's Fortune 777.** Chỉ có gRPC: qua HTTP, backend không cung cấp gì ngoài health check. Thời gian spin đo được là thời gian gRPC xác nhận đã nhận lệnh (acknowledgement), vì kết quả spin đầy đủ được đẩy qua ZMQ. Server tính mức cược bằng `coinValue × coinPerLine × 5`, mặc định là 75. Chi tiết hơn ở [`naga777-load-test-guide.md`](naga777-load-test-guide.md).
+**Naga's Fortune 777.** Chỉ có gRPC: qua HTTP, backend không cung cấp gì ngoài health check. Thời gian spin đo được là thời gian gRPC xác nhận đã nhận lệnh (acknowledgement), vì kết quả spin đầy đủ được đẩy qua ZMQ. Server tính mức cược bằng `coinValue × coinPerLine × 5`, mặc định là 75. Chi tiết hơn ở [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md).
 
 **Mutant Merge.** Chỉ có gRPC. Test đọc từng phản hồi spin và tính mã nghiệp vụ khác 0 là request thất bại, nên lỗi nghiệp vụ hiện thành `KO` trong Gatling.
 
@@ -2745,7 +2745,7 @@ Các file được track, nhóm theo chức năng. Output sinh ra (`build/`, `ta
 | `scripts/monitor-resources.sh` | Lấy mẫu CPU và memory vào một file CSV. | `--container <name> [--fallback-port N] [--interval-sec N] --out <csv> --duration-sec N` (interval mặc định là 5) | `run-variant.sh` (chạy nền) |
 | `scripts/health-poll.sh` | Probe một URL HTTP và ghi vào một file CSV. | `[--url <url>] [--interval-sec N] --out <csv> --duration-sec N` (interval mặc định là 2) | `run-variant.sh` (chạy nền) |
 | `scripts/generate-summary-html.py` | Dựng `summary.html` từ thư mục của một lần chạy. | `--variant-dir <dir>` | `run-variant.sh`, hoặc chạy tay sau khi verify lại |
-| `scripts/generate-final-report.py` | Dựng report tuân thủ dạng Markdown qua các variant. | `--variants-dir target/variants/<game> --report-out <file.md> [--host localhost] [--port 3000]` | Chạy tay (xem `naga777-load-test-guide.md`) |
+| `scripts/generate-final-report.py` | Dựng report tuân thủ dạng Markdown qua các variant. | `--variants-dir target/variants/<game> --report-out <file.md> [--host localhost] [--port 3000]` | Chạy tay (xem `games/naga777/naga777-load-test-guide.md`) |
 
 **Các preset của `loadtest.sh`:**
 
@@ -3257,7 +3257,7 @@ Với smoke test gRPC ngắn, các assertion `requestRate` / `eventCount` của 
 ## Tài liệu tham khảo thêm
 
 - [`HUONG-DAN.md`](HUONG-DAN.md): hướng dẫn từng bước bằng tiếng Việt cho người mới. Tài liệu này có trước `loadtest.sh` và các game chỉ có gRPC, nên chỉ nói về silkroad và bonanza. Nó có link tới `docs/getting-started.md`, file này không có trong repo.
-- [`naga777-load-test-guide.md`](naga777-load-test-guide.md): cách chạy naga777 và đọc kết quả, bao gồm cả `generate-final-report.py`.
+- [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md): cách chạy naga777 và đọc kết quả, bao gồm cả `generate-final-report.py`.
 - [`core/libs/README.md`](core/libs/README.md): JAR GaaS đóng gói sẵn lấy từ đâu và vì sao phải hạ phiên bản.
 - Gatling: [Cú pháp EL](https://docs.gatling.io/reference/script/core/session/el/) · [Gradle plugin](https://docs.gatling.io/reference/integrations/build-tools/gradle-plugin/) · [gRPC DSL](https://docs.gatling.io/reference/script/protocols/grpc/). Link cuối mô tả DSL chính chủ bị khoá sau Enterprise, thứ mà repo này **không** dùng cho các simulation gRPC.
 - [`phisgr/gatling-grpc`](https://github.com/phisgr/gatling-grpc): plugin gRPC cộng đồng (0.17.0, Gatling 3.9.5) đứng sau cả bốn simulation `Grpc`. Plugin này đã bị archive ở upstream.
