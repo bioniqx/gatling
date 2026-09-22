@@ -1,0 +1,65 @@
+# Local SUT for rgp-game-load-test: Golden Boat Bonanza + its own Mongo/Redis.
+# Copy into be-golden-boat-bonanza (the dir with the Dockerfile),
+# then: docker compose -f docker-compose.loadtest.yml up -d --build
+# The backend is gRPC-only (spring.main.web-application-type=none), so there is no HTTP port to
+# map and HTTP_PORT is ignored. gRPC is fixed at 9091 (the Gatling Grpc simulation dials it directly).
+name: bonanza-loadtest
+
+services:
+  game-golden-boat-bonanza:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: game-golden-boat-bonanza:latest
+    container_name: game-golden-boat-bonanza
+    mem_limit: 768m
+    memswap_limit: 768m
+    environment:
+      JVM_OPTS: "-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      # The Luigi wallet adapter is @Profile("!local & !trial") and "local" has no SessionMessagePort
+      # bean, so "trial" is the only profile that boots without the real wallet. It swaps the wallet
+      # and spin/jackpot repositories for in-memory ones: Mongo is connected but sees almost no load.
+      SPRING_PROFILES_ACTIVE: trial
+      TRIAL_INITIAL_BALANCE: "10000000"
+      # The trial profile turns root logging up to INFO and logs every wallet move; keep it quiet.
+      LOGGING_LEVEL_ROOT: WARN
+      LOGGING_LEVEL_YAMA_GAME_GOLDENBOATBONANZA_INFRASTRUCTURE_TRIAL: WARN
+      MONGODB_URI: mongodb://mongo:27017/goldenboatbonanza
+      MONGODB_DATABASE: goldenboatbonanza
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "0"
+      GRPC_SERVER_PORT: "9091"
+      SPIN_TEST_FEATURES_ENABLED: "false"
+      # Both ZMQ publishers only CONNECT their PUB sockets; with no listener they just drop frames.
+      ZMQ_PUBLISHER_ADDRESS: tcp://127.0.0.1:10004
+      ZMQ_PUBLISHER_INTERNAL: tcp://127.0.0.1:11004
+    ports:
+      - "9091:9091"
+    # No HTTP endpoint to probe, so ensure-sut.sh waits on this instead.
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9091"]
+      interval: 5s
+      retries: 60
+    logging:
+      driver: json-file
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20

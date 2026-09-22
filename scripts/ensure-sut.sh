@@ -39,6 +39,11 @@ is_healthy() {
   [[ "$code" == 2* ]]
 }
 
+# For gRPC-only games with no HTTP probe: the compose file's Docker healthcheck.
+container_healthy() {
+  [[ "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$CONTAINER" 2>/dev/null)" == healthy ]]
+}
+
 container_running() {
   [[ -n "$(docker ps -q --filter "name=^${CONTAINER}$" --filter status=running 2>/dev/null)" ]]
 }
@@ -95,7 +100,7 @@ log "Starting the game server (the first time can take a few minutes): ${START_C
 
 log "Waiting for the server to answer ${HEALTH_URL} (up to ${HEALTH_TIMEOUT_SEC}s)"
 DEADLINE=$((SECONDS + HEALTH_TIMEOUT_SEC))
-until is_healthy; do
+until is_healthy || container_healthy; do
   if (( SECONDS >= DEADLINE )); then
     docker logs --tail 50 "$CONTAINER" >&2 || true
     die "the server didn't come up within ${HEALTH_TIMEOUT_SEC}s. Its last 50 log lines are above."

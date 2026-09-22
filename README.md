@@ -38,7 +38,7 @@ This table is the source of truth for the values every command below uses. The g
 | Game                | `GAME`        | Backend source folder (example)                  | Container                  | HTTP port | gRPC port | Health probe path                   | Simulations                        | Auto-start |
 |---------------------|---------------|--------------------------------------------------|----------------------------|-----------|-----------|-------------------------------------|------------------------------------|------------|
 | Silk Road Caravans  | `silkroad`    | `../be-silk-road-caravans`                       | `game-silk-road-caravans`  | `3000`    | —         | `/actuator/health`                  | `Soak`, `Stress`, `Spike`, `Basic` | Yes        |
-| Golden Boat Bonanza | `bonanza`     | `../be-golden-boat-bonanza`                      | `game-golden-boat-bonanza` | `3005`    | `9091`    | `/golden/api/configs/bet-levels`    | `Soak`, `Basic`, `Grpc`            | **No**     |
+| Golden Boat Bonanza | `bonanza`     | `../be-golden-boat-bonanza`                      | `game-golden-boat-bonanza` | `3005`    | `9091`    | `/golden/api/configs/bet-levels`    | `Soak`, `Basic`, `Grpc`            | Yes        |
 | Naga's Fortune 777  | `naga777`     | `../Stable_NAGAS_777/stable-be-naga-fortune-777` | `stable-naga_fortune_777`  | `3000`    | `9096`    | `/health`                           | `Grpc`                             | Yes        |
 | Mutant Merge        | `mutantmerge` | `../Stable_Mutant_Merge/be-mutant-merge`         | `stable-game-mutant-merge` | `3000`    | `9104`    | `/health`                           | `Grpc`                             | Yes        |
 | Zero Day            | `zeroday`     | `../be-zero-day`                                 | `game-zero-day`            | `3000`    | `9103`    | `/api/game/zeroday/actuator/health` | `Grpc`                             | Yes        |
@@ -49,7 +49,7 @@ What the columns mean:
 - **Container**: the Docker container name the harness watches for CPU / memory. The auto-start compose files use exactly these names. If you start a server another way, check the real name with `docker ps`.
 - **HTTP port**: the default when you don't pass `--port`. The health probe URL is `http://localhost:<HTTP port><health probe path>`.
 - **gRPC port**: where the `Grpc` simulation connects (always on `localhost` when you use the wrapper). Silk Road has no gRPC test.
-- **Auto-start**: "Yes" means `games/<game>/docker-compose.loadtest.yml` exists, so the harness can start the server for you. See [Starting the game server automatically](#starting-the-game-server-automatically). Bonanza has no such file, so you start it yourself.
+- **Auto-start**: "Yes" means `games/<game>/docker-compose.loadtest.yml` exists, so the harness can start the server for you. See [Starting the game server automatically](#starting-the-game-server-automatically).
 
 `settings.gradle` also has four more games stubbed out (commented).
 
@@ -195,14 +195,14 @@ export CONTAINER=game-silk-road-caravans
 export PORT=3000
 ```
 
-**1. Start the game server.** You can skip this step for every game except Bonanza: if the server isn't up, step 3 offers to start it ([Starting the game server automatically](#starting-the-game-server-automatically)). To start it by hand with the load-test compose file:
+**1. Start the game server.** You can skip this step: if the server isn't up, step 3 offers to start it ([Starting the game server automatically](#starting-the-game-server-automatically)). To start it by hand with the load-test compose file:
 
 ```bash
 cp games/$GAME/docker-compose.loadtest.yml "$BACKEND_DIR"/
 (cd "$BACKEND_DIR" && HTTP_PORT=$PORT docker compose -f docker-compose.loadtest.yml up -d --build)
 ```
 
-The first build can take a few minutes. For Bonanza, use the backend repo's own Docker set-up and make sure it answers on port `3005` (and `9091` for gRPC).
+The first build can take a few minutes. Bonanza's compose has no HTTP port (`HTTP_PORT` is ignored) — only gRPC `9091` — so its health probe below never answers; wait for the container's Docker healthcheck to report `healthy` instead, and use `--simulation Grpc`.
 
 **2. Check that the server answers.** Use the health probe for your game. Any `2xx` code (normally `200`) means it's up. Anything else: wait a little and retry, or go to [Troubleshooting](#troubleshooting).
 
@@ -233,7 +233,7 @@ A green **PASS** banner means the test cleared every limit.
 
 ## Starting the game server automatically
 
-`run-variant.sh` (and so the menu) calls `scripts/ensure-sut.sh` before every test. When the game server is down, it can start it from the game's source code with `games/<game>/docker-compose.loadtest.yml`. That compose file runs the game plus its own Mongo and Redis (and RabbitMQ for Zero Day), with the real wallet switched off and no outside services.
+`run-variant.sh` (and so the menu) calls `scripts/ensure-sut.sh` before every test. When the game server is down, it can start it from the game's source code with `games/<game>/docker-compose.loadtest.yml`. That compose file runs the game plus its own Mongo and Redis (and RabbitMQ for Zero Day), with the real wallet switched off and no outside services. Bonanza's compose runs Spring profile `trial` (in-memory wallet and in-memory spin/jackpot storage), so its Mongo container sees almost no load.
 
 **When it steps in.** Only when **both** of these are true:
 
@@ -273,7 +273,7 @@ Any other answer (for example `q`) prints `Cancelled.` and stops the run.
 1. The script checks that the folder exists and contains a `Dockerfile`.
 2. It copies `games/<game>/docker-compose.loadtest.yml` into that folder. If a **different** file with that name is already there, the old one is first renamed to `docker-compose.loadtest.yml.bak`, and the script says so. An identical file is simply replaced.
 3. It runs `HTTP_PORT=<port> docker compose -f docker-compose.loadtest.yml up -d --build` in that folder. `HTTP_PORT` is the wrapper's `--port` (default from [Games today](#games-today)), which becomes the game's port on your machine. The gRPC port is fixed per game.
-4. It checks the health probe every 3 seconds for up to **300 seconds**. When it answers, you see `Game server is up.` and the test starts. If it doesn't answer in time, the script prints the container's last 50 log lines and stops with `the server didn't come up within 300s`.
+4. It checks the health probe every 3 seconds for up to **300 seconds** (for Bonanza, which has no HTTP port, it instead waits for the container's Docker healthcheck to report `healthy`). When it answers, you see `Game server is up.` and the test starts. If it doesn't answer in time, the script prints the container's last 50 log lines and stops with `the server didn't come up within 300s`.
 
 The server keeps running after the test. Later tests reuse it and skip all of this.
 
@@ -281,7 +281,7 @@ The server keeps running after the test. Later tests reuse it and skip all of th
 
 | Situation                                      | What happens                                                                                                                              |
 |------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| **Bonanza**                                    | It has no `docker-compose.loadtest.yml`, so the script tells you to start the server yourself and run again.                                   |
+| **Bonanza**                                    | Its compose is gRPC-only (no HTTP port; `HTTP_PORT` is ignored), so only the `Grpc` simulation works against it. With no health-probe URL to poll, the script waits for the container's Docker healthcheck to report `healthy` instead.  |
 | **No terminal** (CI, pipes)                    | It can't ask you anything, so it prints the manual command and stops: `cp <repo>/games/<game>/docker-compose.loadtest.yml <source-dir>/ && cd <source-dir> && HTTP_PORT=<port> docker compose -f docker-compose.loadtest.yml up -d --build` |
 | **Docker isn't running**                       | `Docker isn't running. Open Docker Desktop, wait until it's ready, then run again.`                                                        |
 | **A port is already in use**                   | `docker compose` fails. Another game's stack most likely holds port 3000. Stop it (below), or run with `--port 3010` (menu: **Custom**, last question). |
@@ -291,6 +291,7 @@ The server keeps running after the test. Later tests reuse it and skip all of th
 | Game          | Compose project name   |
 |---------------|------------------------|
 | `silkroad`    | `silkroad-loadtest`    |
+| `bonanza`     | `bonanza-loadtest`     |
 | `naga777`     | `naga777-loadtest`     |
 | `mutantmerge` | `mutantmerge-loadtest` |
 | `zeroday`     | `zeroday-loadtest`     |
@@ -302,7 +303,7 @@ docker compose -p zeroday-loadtest down         # remove its containers and netw
 docker compose -p zeroday-loadtest down -v      # also delete its database volumes
 ```
 
-All four stacks put the game on host port `3000` by default, so only one runs at a time unless you give the others a different `--port`.
+Silk Road, Naga's Fortune 777, Mutant Merge and Zero Day put the game on host port `3000` by default, so only one of them runs at a time unless you give the others a different `--port`. Bonanza doesn't collide with them: it has no HTTP port, and its gRPC port `9091` is fixed (`HTTP_PORT` is ignored).
 
 ## Running tests
 
@@ -470,7 +471,7 @@ Bonanza's stateful endpoints (`BonusStart`, `BonusReveal`, `HistoryRounds`, `Rou
 
 **Silk Road.** A REST-only game. The load-test compose file turns off the real wallet and cheats, and replaces the ZMQ publisher with a mock, so no outside services are needed.
 
-**Golden Boat Bonanza.** You must start it yourself (no auto-start). REST calls go to port `3005` under `/golden`, and `Spin` returns **201**. The `Grpc` test needs gRPC port `9091` reachable on `localhost`.
+**Golden Boat Bonanza.** The auto-start compose is gRPC-only (no HTTP port), so only the `Grpc` test works against it; the `Grpc` test needs gRPC port `9091` reachable on `localhost`. The `Soak` / `Basic` REST simulations need a different deployment that serves HTTP on port `3005` under `/golden`, where `Spin` returns **201**.
 
 **Naga's Fortune 777.** gRPC only: over HTTP the backend offers nothing but its health check. The spin time measured is the gRPC acknowledgement, because the full spin result is pushed over ZMQ. The server derives the bet as `coinValue × coinPerLine × 5`, which is 75 by default. More detail in [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md).
 
@@ -619,7 +620,6 @@ python3 scripts/generate-final-report.py \
 | `loadtest.sh needs a terminal to ask questions. In CI, run scripts/run-variant.sh directly.`     | The menu was run without a terminal (CI, a pipe, a script). Use the `Same as` command from a manual menu run, or build one from [Standard examples](#standard-examples).                                                                                        |
 | Menu shows ○ although the server is up                                                           | The server runs outside Docker, or under a different container name. The test still runs if the health probe answers, but CPU / memory may be `N/A`. Pass the real name with `--container` (manual run).                                                        |
 | `[ensure-sut] ERROR: Docker isn't running. …`                                                    | Open Docker Desktop (or start the Docker service), wait until it is ready, and run again.                                                                                                                                                                       |
-| `[ensure-sut] ERROR: bonanza can't be started automatically …`                                   | Bonanza has no load-test compose file. Start it from its own repo so that it answers on `3005`, then run again.                                                                                                                                                  |
 | `[ensure-sut] ERROR: can't ask where the source code is (no terminal). …`                        | Auto-start needs a terminal. Start the server with the command printed under the error (see [Manual way four steps](#manual-way-four-steps)), then run again.                                                                                                   |
 | `[ensure-sut] ERROR: folder not found: …` or `no Dockerfile in …`                                | Wrong folder. Paste the backend's top folder, the one with the `Dockerfile` (see [Games today](#games-today)).                                                                                                                                                  |
 | `[ensure-sut] ERROR: couldn't download the source code (see the git error above).`               | Check the URL, your git access (SSH key or credentials), and that the repo has a `main` branch.                                                                                                                                                                 |
@@ -1070,7 +1070,8 @@ Tracked files, grouped. Generated output (`build/`, `target/`) is gitignored.
 │   │       └── resources/            game.yml, sla-thresholds.yml, gatling.conf, logback-test.xml,
 │   │                                 games/silkroad/bodies/*.json
 │   ├── bonanza/                      REST (Java, Gatling 3.15) + gRPC (Scala, Gatling 3.9.5), stateful
-│   │   ├── build.gradle              (no docker-compose.loadtest.yml)
+│   │   ├── build.gradle
+│   │   ├── docker-compose.loadtest.yml
 │   │   └── src/
 │   │       ├── gatling/
 │   │       │   ├── java/com/rgp/loadtest/bonanza/   simulations/ scenarios/ requests/ utils/
@@ -1478,7 +1479,7 @@ GAMES=(
 
 ### Phase 10 Wire automatic start
 
-To let `ensure-sut.sh` start the SUT for you, add `games/$NEW/docker-compose.loadtest.yml`, modelled on an existing one (`games/silkroad/` for REST, `games/zeroday/` or `games/mutantmerge/` for gRPC). Without it, a run against a stopped SUT fails with "can't be started automatically". bonanza is in that state today.
+To let `ensure-sut.sh` start the SUT for you, add `games/$NEW/docker-compose.loadtest.yml`, modelled on an existing one (`games/silkroad/` for REST, `games/zeroday/` or `games/mutantmerge/` for gRPC). Without it, a run against a stopped SUT fails with "can't be started automatically".
 
 The script copies the file into the backend's root folder (next to its `Dockerfile`) and runs `HTTP_PORT=<wrapper port> docker compose -f docker-compose.loadtest.yml up -d --build`. The file needs these parts:
 
@@ -1671,7 +1672,7 @@ Bảng này là nguồn chuẩn cho các giá trị mà mọi lệnh bên dướ
 | Game                | `GAME`        | Thư mục source backend (ví dụ)                   | Container                  | Port HTTP | Port gRPC | Đường dẫn health probe              | Simulation                         | Tự khởi động |
 |---------------------|---------------|--------------------------------------------------|----------------------------|-----------|-----------|-------------------------------------|------------------------------------|--------------|
 | Silk Road Caravans  | `silkroad`    | `../be-silk-road-caravans`                       | `game-silk-road-caravans`  | `3000`    | —         | `/actuator/health`                  | `Soak`, `Stress`, `Spike`, `Basic` | Có           |
-| Golden Boat Bonanza | `bonanza`     | `../be-golden-boat-bonanza`                      | `game-golden-boat-bonanza` | `3005`    | `9091`    | `/golden/api/configs/bet-levels`    | `Soak`, `Basic`, `Grpc`            | **Không**    |
+| Golden Boat Bonanza | `bonanza`     | `../be-golden-boat-bonanza`                      | `game-golden-boat-bonanza` | `3005`    | `9091`    | `/golden/api/configs/bet-levels`    | `Soak`, `Basic`, `Grpc`            | Có           |
 | Naga's Fortune 777  | `naga777`     | `../Stable_NAGAS_777/stable-be-naga-fortune-777` | `stable-naga_fortune_777`  | `3000`    | `9096`    | `/health`                           | `Grpc`                             | Có           |
 | Mutant Merge        | `mutantmerge` | `../Stable_Mutant_Merge/be-mutant-merge`         | `stable-game-mutant-merge` | `3000`    | `9104`    | `/health`                           | `Grpc`                             | Có           |
 | Zero Day            | `zeroday`     | `../be-zero-day`                                 | `game-zero-day`            | `3000`    | `9103`    | `/api/game/zeroday/actuator/health` | `Grpc`                             | Có           |
@@ -1682,7 +1683,7 @@ Bảng này là nguồn chuẩn cho các giá trị mà mọi lệnh bên dướ
 - **Container**: tên Docker container mà harness theo dõi CPU / bộ nhớ. Các file compose dùng để tự khởi động đặt đúng các tên này. Nếu bạn khởi động server theo cách khác, hãy xem tên thật bằng `docker ps`.
 - **Port HTTP**: giá trị mặc định khi bạn không truyền `--port`. URL health probe là `http://localhost:<HTTP port><health probe path>`.
 - **Port gRPC**: nơi simulation `Grpc` kết nối tới (luôn trên `localhost` khi bạn dùng wrapper). Silk Road không có test gRPC.
-- **Tự khởi động**: "Có" nghĩa là có file `games/<game>/docker-compose.loadtest.yml`, nên harness có thể khởi động server giúp bạn. Xem [Tự động khởi động game server](#tự-động-khởi-động-game-server). Bonanza không có file này, nên bạn phải tự khởi động.
+- **Tự khởi động**: "Có" nghĩa là có file `games/<game>/docker-compose.loadtest.yml`, nên harness có thể khởi động server giúp bạn. Xem [Tự động khởi động game server](#tự-động-khởi-động-game-server).
 
 `settings.gradle` còn khai báo sẵn bốn game khác nhưng đang tắt (bị comment).
 
@@ -1828,14 +1829,14 @@ export CONTAINER=game-silk-road-caravans
 export PORT=3000
 ```
 
-**1. Khởi động game server.** Bạn có thể bỏ qua bước này với mọi game trừ Bonanza: nếu server chưa chạy, bước 3 sẽ đề nghị khởi động nó ([Tự động khởi động game server](#tự-động-khởi-động-game-server)). Để tự khởi động bằng file compose dành cho load test:
+**1. Khởi động game server.** Bạn có thể bỏ qua bước này: nếu server chưa chạy, bước 3 sẽ đề nghị khởi động nó ([Tự động khởi động game server](#tự-động-khởi-động-game-server)). Để tự khởi động bằng file compose dành cho load test:
 
 ```bash
 cp games/$GAME/docker-compose.loadtest.yml "$BACKEND_DIR"/
 (cd "$BACKEND_DIR" && HTTP_PORT=$PORT docker compose -f docker-compose.loadtest.yml up -d --build)
 ```
 
-Lần build đầu có thể mất vài phút. Với Bonanza, hãy dùng cấu hình Docker riêng của repo backend và đảm bảo nó trả lời trên port `3005` (và `9091` cho gRPC).
+Lần build đầu có thể mất vài phút. File compose của Bonanza không có port HTTP (`HTTP_PORT` bị bỏ qua) — chỉ có gRPC `9091` — nên health probe ở bước dưới không bao giờ trả lời; hãy đợi Docker healthcheck của container báo `healthy` thay vào đó, và dùng `--simulation Grpc`.
 
 **2. Kiểm tra server có trả lời không.** Dùng health probe của game bạn. Mã `2xx` bất kỳ (thường là `200`) nghĩa là server đã lên. Nếu là mã khác: đợi một chút rồi thử lại, hoặc xem [Xử lý sự cố](#xử-lý-sự-cố).
 
@@ -1866,7 +1867,7 @@ Banner **PASS** màu xanh lá nghĩa là test đã vượt qua mọi ngưỡng.
 
 ## Tự động khởi động game server
 
-`run-variant.sh` (và do đó cả menu) gọi `scripts/ensure-sut.sh` trước mỗi lần test. Khi game server không chạy, script này có thể khởi động nó từ source code của game bằng `games/<game>/docker-compose.loadtest.yml`. File compose đó chạy game cùng Mongo và Redis riêng (và RabbitMQ với Zero Day), tắt wallet thật và không cần dịch vụ bên ngoài nào.
+`run-variant.sh` (và do đó cả menu) gọi `scripts/ensure-sut.sh` trước mỗi lần test. Khi game server không chạy, script này có thể khởi động nó từ source code của game bằng `games/<game>/docker-compose.loadtest.yml`. File compose đó chạy game cùng Mongo và Redis riêng (và RabbitMQ với Zero Day), tắt wallet thật và không cần dịch vụ bên ngoài nào. File compose của Bonanza chạy Spring profile `trial` (wallet và lưu trữ spin/jackpot đều in-memory), nên container Mongo của nó gần như không nhận tải nào.
 
 **Khi nào script can thiệp.** Chỉ khi **cả hai** điều sau đều đúng:
 
@@ -1906,7 +1907,7 @@ Câu trả lời khác (ví dụ `q`) sẽ in `Cancelled.` và dừng lần ch�
 1. Script kiểm tra thư mục có tồn tại và có chứa `Dockerfile` không.
 2. Nó copy `games/<game>/docker-compose.loadtest.yml` vào thư mục đó. Nếu ở đó đã có một file **khác** cùng tên, file cũ được đổi tên thành `docker-compose.loadtest.yml.bak` trước, và script báo cho bạn biết. Nếu file giống hệt thì chỉ đơn giản bị thay thế.
 3. Nó chạy `HTTP_PORT=<port> docker compose -f docker-compose.loadtest.yml up -d --build` trong thư mục đó. `HTTP_PORT` là giá trị `--port` của wrapper (mặc định lấy từ [Các game hiện có](#các-game-hiện-có)), và trở thành port của game trên máy bạn. Port gRPC cố định theo từng game.
-4. Nó kiểm tra health probe mỗi 3 giây, tối đa **300 giây**. Khi probe trả lời, bạn thấy `Game server is up.` và test bắt đầu. Nếu hết thời gian mà vẫn không trả lời, script in 50 dòng log cuối của container rồi dừng với `the server didn't come up within 300s`.
+4. Nó kiểm tra health probe mỗi 3 giây, tối đa **300 giây** (riêng Bonanza, vì không có port HTTP, script đợi Docker healthcheck của container báo `healthy` thay vào đó). Khi probe trả lời, bạn thấy `Game server is up.` và test bắt đầu. Nếu hết thời gian mà vẫn không trả lời, script in 50 dòng log cuối của container rồi dừng với `the server didn't come up within 300s`.
 
 Server vẫn tiếp tục chạy sau khi test xong. Các lần test sau dùng lại nó và bỏ qua toàn bộ các bước này.
 
@@ -1914,7 +1915,7 @@ Server vẫn tiếp tục chạy sau khi test xong. Các lần test sau dùng l�
 
 | Tình huống                                     | Chuyện gì xảy ra                                                                                                                          |
 |------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| **Bonanza**                                    | Game này không có `docker-compose.loadtest.yml`, nên script bảo bạn tự khởi động server rồi chạy lại.                                     |
+| **Bonanza**                                    | File compose của nó chỉ có gRPC (không có port HTTP; `HTTP_PORT` bị bỏ qua), nên chỉ simulation `Grpc` chạy được. Vì không có URL health probe để hỏi, script đợi Docker healthcheck của container báo `healthy` thay vào đó.  |
 | **Không có terminal** (CI, pipe)               | Script không hỏi bạn được, nên in ra lệnh thủ công rồi dừng: `cp <repo>/games/<game>/docker-compose.loadtest.yml <source-dir>/ && cd <source-dir> && HTTP_PORT=<port> docker compose -f docker-compose.loadtest.yml up -d --build` |
 | **Docker chưa chạy**                           | `Docker isn't running. Open Docker Desktop, wait until it's ready, then run again.`                                                        |
 | **Port đã bị chiếm**                           | `docker compose` thất bại. Nhiều khả năng stack của một game khác đang giữ port 3000. Hãy dừng stack đó (xem bên dưới), hoặc chạy với `--port 3010` (menu: **Custom**, câu hỏi cuối). |
@@ -1924,6 +1925,7 @@ Server vẫn tiếp tục chạy sau khi test xong. Các lần test sau dùng l�
 | Game          | Tên compose project    |
 |---------------|------------------------|
 | `silkroad`    | `silkroad-loadtest`    |
+| `bonanza`     | `bonanza-loadtest`     |
 | `naga777`     | `naga777-loadtest`     |
 | `mutantmerge` | `mutantmerge-loadtest` |
 | `zeroday`     | `zeroday-loadtest`     |
@@ -1935,7 +1937,7 @@ docker compose -p zeroday-loadtest down         # xóa container và network c�
 docker compose -p zeroday-loadtest down -v      # xóa luôn các volume database
 ```
 
-Cả bốn stack đều đặt game ở port host `3000` theo mặc định, nên mỗi lúc chỉ chạy được một stack, trừ khi bạn cho các stack còn lại một `--port` khác.
+Silk Road, Naga's Fortune 777, Mutant Merge và Zero Day đặt game ở port host `3000` theo mặc định, nên mỗi lúc chỉ chạy được một trong số đó, trừ khi bạn cho các stack còn lại một `--port` khác. Bonanza không đụng port với chúng: nó không có port HTTP, và port gRPC `9091` của nó là cố định (`HTTP_PORT` bị bỏ qua).
 
 ## Chạy test
 
@@ -2103,7 +2105,7 @@ Các endpoint có trạng thái của Bonanza (`BonusStart`, `BonusReveal`, `His
 
 **Silk Road.** Game chỉ có REST. File compose cho load test tắt wallet thật và cheat, đồng thời thay ZMQ publisher bằng bản mock, nên không cần dịch vụ bên ngoài nào.
 
-**Golden Boat Bonanza.** Bạn phải tự khởi động game này (không có tự khởi động). Các lời gọi REST đi tới port `3005` dưới `/golden`, và `Spin` trả về **201**. Test `Grpc` cần truy cập được port gRPC `9091` trên `localhost`.
+**Golden Boat Bonanza.** File compose tự khởi động chỉ có gRPC (không có port HTTP), nên chỉ test `Grpc` chạy được với nó; test `Grpc` cần truy cập được port gRPC `9091` trên `localhost`. Các simulation REST `Soak` / `Basic` cần một deployment khác trả lời trên port `3005` dưới `/golden`, nơi `Spin` trả về **201**.
 
 **Naga's Fortune 777.** Chỉ có gRPC: qua HTTP, backend không cung cấp gì ngoài health check. Thời gian spin đo được là thời gian gRPC xác nhận đã nhận lệnh (acknowledgement), vì kết quả spin đầy đủ được đẩy qua ZMQ. Server tính mức cược bằng `coinValue × coinPerLine × 5`, mặc định là 75. Chi tiết hơn ở [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md).
 
@@ -2252,7 +2254,6 @@ python3 scripts/generate-final-report.py \
 | `loadtest.sh needs a terminal to ask questions. In CI, run scripts/run-variant.sh directly.`     | Menu được chạy mà không có terminal (CI, pipe, script). Dùng lệnh `Same as` lấy từ một lần chạy menu thủ công, hoặc tự dựng lệnh từ [Ví dụ chuẩn](#ví-dụ-chuẩn).                                                                                              |
 | Menu hiện ○ dù server đang chạy                                                                  | Server chạy ngoài Docker, hoặc dưới một tên container khác. Test vẫn chạy nếu health probe trả lời, nhưng CPU / bộ nhớ có thể là `N/A`. Truyền tên thật bằng `--container` (khi chạy thủ công).                                                               |
 | `[ensure-sut] ERROR: Docker isn't running. …`                                                    | Mở Docker Desktop (hoặc khởi động dịch vụ Docker), đợi nó sẵn sàng rồi chạy lại.                                                                                                                                                                               |
-| `[ensure-sut] ERROR: bonanza can't be started automatically …`                                   | Bonanza không có file compose cho load test. Hãy khởi động nó từ repo riêng của nó sao cho nó trả lời trên `3005`, rồi chạy lại.                                                                                                                                |
 | `[ensure-sut] ERROR: can't ask where the source code is (no terminal). …`                        | Tự khởi động cần có terminal. Hãy khởi động server bằng lệnh được in dưới thông báo lỗi (xem [Cách thủ công bốn bước](#cách-thủ-công-bốn-bước)), rồi chạy lại.                                                                                                 |
 | `[ensure-sut] ERROR: folder not found: …` hoặc `no Dockerfile in …`                              | Sai thư mục. Hãy dán thư mục gốc của backend, tức thư mục có `Dockerfile` (xem [Các game hiện có](#các-game-hiện-có)).                                                                                                                                         |
 | `[ensure-sut] ERROR: couldn't download the source code (see the git error above).`               | Kiểm tra URL, quyền truy cập git của bạn (SSH key hoặc thông tin đăng nhập), và repo có nhánh `main` hay không.                                                                                                                                                 |
@@ -2703,7 +2704,8 @@ Các file được track, nhóm theo chức năng. Output sinh ra (`build/`, `ta
 │   │       └── resources/            game.yml, sla-thresholds.yml, gatling.conf, logback-test.xml,
 │   │                                 games/silkroad/bodies/*.json
 │   ├── bonanza/                      REST (Java, Gatling 3.15) + gRPC (Scala, Gatling 3.9.5), stateful
-│   │   ├── build.gradle              (không có docker-compose.loadtest.yml)
+│   │   ├── build.gradle
+│   │   ├── docker-compose.loadtest.yml
 │   │   └── src/
 │   │       ├── gatling/
 │   │       │   ├── java/com/rgp/loadtest/bonanza/   simulations/ scenarios/ requests/ utils/
@@ -3111,7 +3113,7 @@ GAMES=(
 
 ### Giai đoạn 10 Nối chức năng tự khởi động
 
-Để `ensure-sut.sh` tự khởi động SUT cho bạn, hãy thêm `games/$NEW/docker-compose.loadtest.yml`, dựa theo một file có sẵn (`games/silkroad/` cho REST, `games/zeroday/` hoặc `games/mutantmerge/` cho gRPC). Nếu không có file này, một lần chạy nhắm vào SUT đang dừng sẽ fail với "can't be started automatically". bonanza hiện đang ở tình trạng đó.
+Để `ensure-sut.sh` tự khởi động SUT cho bạn, hãy thêm `games/$NEW/docker-compose.loadtest.yml`, dựa theo một file có sẵn (`games/silkroad/` cho REST, `games/zeroday/` hoặc `games/mutantmerge/` cho gRPC). Nếu không có file này, một lần chạy nhắm vào SUT đang dừng sẽ fail với "can't be started automatically".
 
 Script sao chép file vào thư mục gốc của backend (cạnh `Dockerfile` của nó) và chạy `HTTP_PORT=<wrapper port> docker compose -f docker-compose.loadtest.yml up -d --build`. File cần có các phần sau:
 
