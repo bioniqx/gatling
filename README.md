@@ -35,23 +35,30 @@ Two words used everywhere below:
 
 This table is the source of truth for the values every command below uses. The game servers ("backends") live in **separate repositories** next to this one. This repo does not build them.
 
-| Game                | `GAME`        | Backend source folder (example)                  | Container                  | HTTP port | gRPC port | Health probe path                   | Simulations                        | Auto-start |
-|---------------------|---------------|--------------------------------------------------|----------------------------|-----------|-----------|-------------------------------------|------------------------------------|------------|
-| Silk Road Caravans  | `silkroad`    | `../be-silk-road-caravans`                       | `game-silk-road-caravans`  | `3000`    | —         | `/actuator/health`                  | `Soak`, `Stress`, `Spike`, `Basic` | Yes        |
-| Golden Boat Bonanza | `bonanza`     | `../be-golden-boat-bonanza`                      | `game-golden-boat-bonanza` | `3005`    | `9091`    | `/golden/api/configs/bet-levels`    | `Soak`, `Basic`, `Grpc`            | Yes        |
-| Naga's Fortune 777  | `naga777`     | `../Stable_NAGAS_777/stable-be-naga-fortune-777` | `stable-naga_fortune_777`  | `3000`    | `9096`    | `/health`                           | `Grpc`                             | Yes        |
-| Mutant Merge        | `mutantmerge` | `../Stable_Mutant_Merge/be-mutant-merge`         | `stable-game-mutant-merge` | `3000`    | `9104`    | `/health`                           | `Grpc`                             | Yes        |
-| Zero Day            | `zeroday`     | `../be-zero-day`                                 | `game-zero-day`            | `3000`    | `9103`    | `/api/game/zeroday/actuator/health` | `Grpc`                             | Yes        |
+| Game                 | `GAME`           | Backend source folder (example)                  | Container                   | HTTP port | gRPC port | Health probe path                   | Simulations                                | Auto-start |
+|----------------------|------------------|---------------------------------------------------|------------------------------|-----------|-----------|--------------------------------------|----------------------------------------------|------------|
+| Silk Road Caravans   | `silkroad`       | `../be-silk-road-caravans`                        | `game-silk-road-caravans`   | `3000`    | `9093`    | — (Docker healthcheck)              | `Soak`, `Stress`, `Spike`, `Basic`, `Grpc` | Yes        |
+| Golden Boat Bonanza  | `bonanza`        | `../be-golden-boat-bonanza`                       | `game-golden-boat-bonanza`  | —         | `9091`    | — (Docker healthcheck)              | `Grpc`                                     | Yes        |
+| Naga's Fortune 777   | `naga777`        | `../Stable_NAGAS_777/stable-be-naga-fortune-777`  | `stable-naga_fortune_777`   | `3000`    | `9096`    | `/health`                            | `Grpc`                                     | Yes        |
+| Mutant Merge         | `mutantmerge`    | `../Stable_Mutant_Merge/be-mutant-merge`          | `stable-game-mutant-merge`  | `3000`    | `9104`    | `/health`                            | `Grpc`                                     | Yes        |
+| Zero Day             | `zeroday`        | `../be-zero-day`                                  | `game-zero-day`             | `3000`    | `9103`    | `/api/game/zeroday/actuator/health` | `Grpc`                                     | Yes        |
+| Apsara Paradise      | `apsara`         | `../be-apsara-paradise`                           | `game-apsara-paradise`      | `3011`    | `9095`    | `/api/game/apsara/api/ping`         | `Grpc`                                     | Yes        |
+| Candy Frenzy         | `candy`          | `../be-candy-frenzy`                              | `game-candy-frenzy`         | `3012`    | `9098`    | `/health`                            | `Grpc`                                     | Yes        |
+| Colosseum Showdown   | `colosseum`      | `../be-colosseum-showdown`                        | `game-colosseum-showdown`   | `3013`    | `9102`    | `/health`                            | `Grpc`                                     | Yes        |
+| Naga's Treasure      | `nagas-treasure` | `../be-nagas-treasure`                            | `game-nagas-treasure`       | `3014`    | `9092`    | `/api/game/nagas/actuator/health`   | `Grpc`                                     | Yes        |
 
 What the columns mean:
 
 - **Backend source folder**: the folder that holds the game's `Dockerfile`. The paths are only examples; use wherever the repo sits on your machine.
 - **Container**: the Docker container name the harness watches for CPU / memory. The auto-start compose files use exactly these names. If you start a server another way, check the real name with `docker ps`.
-- **HTTP port**: the default when you don't pass `--port`. The health probe URL is `http://localhost:<HTTP port><health probe path>`.
-- **gRPC port**: where the `Grpc` simulation connects (always on `localhost` when you use the wrapper). Silk Road has no gRPC test.
+- **HTTP port**: the default when you don't pass `--port`. The health probe URL is `http://localhost:<HTTP port><health probe path>`. Bonanza has no HTTP port at all — it's gRPC-only.
+- **Health probe path**: shown as "— (Docker healthcheck)" for Bonanza and Silk Road, which have no HTTP health endpoint; the harness instead waits for / polls the container's Docker healthcheck (see [Starting the game server automatically](#starting-the-game-server-automatically)).
+- **gRPC port**: where the `Grpc` simulation connects (always on `localhost` when you use the wrapper).
 - **Auto-start**: "Yes" means `games/<game>/docker-compose.loadtest.yml` exists, so the harness can start the server for you. See [Starting the game server automatically](#starting-the-game-server-automatically).
 
-`settings.gradle` also has four more games stubbed out (commented).
+Naga's Treasure's local SUT runs with the Spring profile `trial` (in-memory wallet, state and history) — turning off the Luigi wallet leaves no wallet bean at all otherwise.
+
+`settings.gradle` also has two more games stubbed out (commented).
 
 ## Setup
 
@@ -94,7 +101,7 @@ The menu asks a few questions, shows you the exact command it is about to run, r
 
 **Screen 1: which game.** Each game shows ● if its container is running right now and ○ if it isn't. A server that runs outside Docker shows ○, but the test still works as long as its health probe answers.
 
-**Screen 2: what kind of test.** Only the games with more than one test type ask this. Naga's Fortune 777, Mutant Merge and Zero Day have only `gRPC`, so the menu prints it and moves on.
+**Screen 2: what kind of test.** Only the games with more than one test type ask this. Golden Boat Bonanza, Naga's Fortune 777, Mutant Merge, Zero Day, Apsara Paradise, Candy Frenzy, Colosseum Showdown and Naga's Treasure have only `gRPC`, so the menu prints it and moves on.
 
 | Menu text                                                               | Simulation |
 |-------------------------------------------------------------------------|------------|
@@ -162,14 +169,19 @@ $ ./loadtest.sh
   3) ○ Naga's Fortune 777
   4) ○ Mutant Merge
   5) ● Zero Day
-Game [1-5]: 1
+  6) ○ Apsara Paradise
+  7) ○ Candy Frenzy
+  8) ○ Colosseum Showdown
+  9) ○ Naga's Treasure
+Game [1-9]: 1
 
 == What kind of test? ==
   1) Soak    steady load for a while (finds slowdowns and memory leaks)
   2) Stress  keep adding players until the server struggles
   3) Spike   normal load with sudden rushes of players
   4) Basic   call one API many times
-Test type [1-4]: 1
+  5) gRPC    steady load over gRPC, the way the real game client connects
+Test type [1-5]: 1
 
 == How big should the test be? ==
   1) Smoke         10 players for 1 minute (just checks that it works)
@@ -202,18 +214,21 @@ cp games/$GAME/docker-compose.loadtest.yml "$BACKEND_DIR"/
 (cd "$BACKEND_DIR" && HTTP_PORT=$PORT docker compose -f docker-compose.loadtest.yml up -d --build)
 ```
 
-The first build can take a few minutes. Bonanza's compose has no HTTP port (`HTTP_PORT` is ignored) — only gRPC `9091` — so its health probe below never answers; wait for the container's Docker healthcheck to report `healthy` instead, and use `--simulation Grpc`.
+The first build can take a few minutes. Bonanza's compose has no HTTP port (`HTTP_PORT` is ignored) — only gRPC `9091` — so it has no HTTP health probe at all; wait for the container's Docker healthcheck to report `healthy` instead, and use `--simulation Grpc`. Silk Road's backend has no actuator either, so its compose healthcheck probes the gRPC port `9093` directly instead of HTTP — wait for that container's Docker healthcheck the same way.
 
-**2. Check that the server answers.** Use the health probe for your game. Any `2xx` code (normally `200`) means it's up. Anything else: wait a little and retry, or go to [Troubleshooting](#troubleshooting).
+**2. Check that the server answers.** Use the health probe for your game. Any `2xx` code (normally `200`) means it's up. Bonanza and Silk Road have no HTTP health endpoint — check their Docker healthcheck status instead (`healthy` means it's up). Anything else: wait a little and retry, or go to [Troubleshooting](#troubleshooting).
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/actuator/health                  # silkroad
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3005/golden/api/configs/bet-levels     # bonanza
+docker inspect -f '{{.State.Health.Status}}' game-silk-road-caravans                              # silkroad, bonanza (no HTTP health)
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/health                            # naga777, mutantmerge
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/game/zeroday/actuator/health  # zeroday
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3011/api/game/apsara/api/ping          # apsara
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3012/health                            # candy
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3013/health                            # colosseum
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3014/api/game/nagas/actuator/health    # nagas-treasure
 ```
 
-**3. Run a 1-minute smoke test.** Use `--simulation Grpc` for naga777, mutantmerge and zeroday.
+**3. Run a 1-minute smoke test.** Use `--simulation Grpc` for every game except Silk Road, which also has `Soak`, `Stress`, `Spike` and `Basic`.
 
 ```bash
 ./scripts/run-variant.sh \
@@ -233,7 +248,7 @@ A green **PASS** banner means the test cleared every limit.
 
 ## Starting the game server automatically
 
-`run-variant.sh` (and so the menu) calls `scripts/ensure-sut.sh` before every test. When the game server is down, it can start it from the game's source code with `games/<game>/docker-compose.loadtest.yml`. That compose file runs the game plus its own Mongo and Redis (and RabbitMQ for Zero Day), with the real wallet switched off and no outside services. Bonanza's compose runs Spring profile `trial` (in-memory wallet and in-memory spin/jackpot storage), so its Mongo container sees almost no load.
+`run-variant.sh` (and so the menu) calls `scripts/ensure-sut.sh` before every test. When the game server is down, it can start it from the game's source code with `games/<game>/docker-compose.loadtest.yml`. That compose file runs the game plus its own Mongo and Redis (and RabbitMQ for Zero Day), with the real wallet switched off and no outside services. Bonanza's compose runs Spring profile `trial` (in-memory wallet and in-memory spin/jackpot storage), so its Mongo container sees almost no load. Naga's Treasure's compose runs the same `trial` profile (in-memory wallet, state and history) for the same reason: without it, turning off the Luigi wallet would leave no wallet bean at all.
 
 **When it steps in.** Only when **both** of these are true:
 
@@ -245,7 +260,7 @@ A server that runs outside Docker is accepted as long as its health probe answer
 **What you see.**
 
 ```text
-[ensure-sut] The silkroad game server isn't running (no running container 'game-silk-road-caravans', and http://localhost:3000/actuator/health doesn't answer).
+[ensure-sut] The silkroad game server isn't running (no running container 'game-silk-road-caravans', and its Docker healthcheck isn't healthy).
 How do you want to start it?
   1) The game's source code is on this machine (you paste the folder path)
   2) Download the source code from git, branch main (you paste the git URL)
@@ -253,7 +268,7 @@ How do you want to start it?
 Choice [1/2/q]: 1
 Folder with the game's source code: ~/Projects/be-silk-road-caravans
 [ensure-sut] Starting the game server (the first time can take a few minutes): HTTP_PORT=3000 docker compose -f docker-compose.loadtest.yml up -d --build
-[ensure-sut] Waiting for the server to answer http://localhost:3000/actuator/health (up to 300s)
+[ensure-sut] Waiting for the container's Docker healthcheck to report healthy (up to 300s)
 [ensure-sut] Game server is up.
 ```
 
@@ -282,19 +297,24 @@ The server keeps running after the test. Later tests reuse it and skip all of th
 | Situation                                      | What happens                                                                                                                              |
 |------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | **Bonanza**                                    | Its compose is gRPC-only (no HTTP port; `HTTP_PORT` is ignored), so only the `Grpc` simulation works against it. With no health-probe URL to poll, the script waits for the container's Docker healthcheck to report `healthy` instead.  |
+| **Silk Road**                                  | Its backend has no actuator either, so the compose healthcheck probes the gRPC port `9093` over TCP instead of HTTP. Same fallback as Bonanza: the script waits for the container's Docker healthcheck to report `healthy`.  |
 | **No terminal** (CI, pipes)                    | It can't ask you anything, so it prints the manual command and stops: `cp <repo>/games/<game>/docker-compose.loadtest.yml <source-dir>/ && cd <source-dir> && HTTP_PORT=<port> docker compose -f docker-compose.loadtest.yml up -d --build` |
 | **Docker isn't running**                       | `Docker isn't running. Open Docker Desktop, wait until it's ready, then run again.`                                                        |
 | **A port is already in use**                   | `docker compose` fails. Another game's stack most likely holds port 3000. Stop it (below), or run with `--port 3010` (menu: **Custom**, last question). |
 
 **Stopping the server afterwards.** Each compose file gives its stack a fixed project name, so these commands work from any folder:
 
-| Game          | Compose project name   |
-|---------------|------------------------|
-| `silkroad`    | `silkroad-loadtest`    |
-| `bonanza`     | `bonanza-loadtest`     |
-| `naga777`     | `naga777-loadtest`     |
-| `mutantmerge` | `mutantmerge-loadtest` |
-| `zeroday`     | `zeroday-loadtest`     |
+| Game               | Compose project name       |
+|--------------------|-----------------------------|
+| `silkroad`         | `silkroad-loadtest`         |
+| `bonanza`          | `bonanza-loadtest`          |
+| `naga777`          | `naga777-loadtest`          |
+| `mutantmerge`      | `mutantmerge-loadtest`      |
+| `zeroday`          | `zeroday-loadtest`          |
+| `apsara`           | `apsara-loadtest`           |
+| `candy`            | `candy-loadtest`            |
+| `colosseum`        | `colosseum-loadtest`        |
+| `nagas-treasure`   | `nagas-treasure-loadtest`   |
 
 ```bash
 docker compose ls                               # which stacks are running
@@ -324,7 +344,7 @@ Ctrl+C stops the background monitors, prints the path of the partial results and
 
 ```bash
 ./scripts/run-variant.sh \
-  --game <silkroad|bonanza|naga777|mutantmerge|zeroday> \
+  --game <silkroad|bonanza|naga777|mutantmerge|zeroday|apsara|candy|colosseum|nagas-treasure> \
   --variant <baseline|target|stress|critical> \
   --simulation <Soak|Stress|Spike|Basic|Grpc> \
   --container <name> \
@@ -334,17 +354,17 @@ Ctrl+C stops the background monitors, prints the path of the partial results and
 
 | Flag                 | Default                                     | Required | Notes                                                                                                                                                                                  |
 |----------------------|---------------------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--game`             | none                                        | Yes      | One of the five `GAME` ids. It can also come from the `GAME` environment variable, and the flag wins if both are set. There is no default: leaving it out stops with an error. A name with no `games/<name>/` folder stops with `ERROR: unknown game '<name>'`. |
+| `--game`             | none                                        | Yes      | One of the nine `GAME` ids. It can also come from the `GAME` environment variable, and the flag wins if both are set. There is no default: leaving it out stops with an error. A name with no `games/<name>/` folder stops with `ERROR: unknown game '<name>'`. |
 | `--variant`          | none                                        | Yes      | Sets the CPU / memory limit: `baseline` 50 / 60 %, `target` 70 / 80 % (release gate), `stress` 85 / 90 %, `critical` 95 / 95 %. See [Configuration](#configuration). Only the verifier checks the name, **after** the test, so check the spelling. |
 | `--simulation`       | none                                        | Yes      | Upper or lower case both work. It must be one the game supports ([Games today](#games-today)). If not, Gradle cannot find the task and the run fails.                                    |
 | `--container`        | none                                        | Yes      | Used to detect a running server and to read `docker stats`. If no such container exists, CPU / memory come from the process listening on `--port`. If there is none either, the values are `N/A`. |
 | `--users`            | `1000`                                      |          | Number of players (VUs).                                                                                                                                                               |
 | `--duration-minutes` | `60`                                        |          | How long the full load is held, after the ramp.                                                                                                                                         |
-| `--ramp-minutes`     | `5`                                         |          | Warm-up: time for players to join. The wrapper always sends this value, so the `Grpc` and Bonanza `Soak` simulations never use their own default of 2. The menu sends 2 for `Grpc` and 5 for every other test. To give Bonanza `Soak` its own ramp of 2, pass `--ramp-minutes 2`. |
-| `--port`             | `3005` for `bonanza`, `3000` for all others |          | Game HTTP port. Used for the health probe URL, as the CPU / memory fallback, as `HTTP_PORT` when auto-starting, and passed to the REST simulations as `-Dport`. The `Grpc` simulations always use their own gRPC port. |
-| `--parallel`         | off                                         |          | Soak only: all players join at once instead of ramping. It only works for **Silk Road**. Bonanza's `Soak` ignores it.                                                                    |
+| `--ramp-minutes`     | `5`                                         |          | Warm-up: time for players to join. The wrapper always sends this value, so the `Grpc` simulations never use their own default of 2. The menu sends 2 for `Grpc` and 5 for every other test. |
+| `--port`             | `3005` for `bonanza`, `3000` for most others |          | Game HTTP port; the four newest gRPC-only games each have their own (see [Games today](#games-today)). Used for the health probe URL (except silkroad and bonanza, which have no HTTP health endpoint and instead poll the container's Docker healthcheck — see [Troubleshooting](#troubleshooting)), as the CPU / memory fallback, as `HTTP_PORT` when auto-starting, and passed to the REST simulations as `-Dport`. The `Grpc` simulations always use their own gRPC port. |
+| `--parallel`         | off                                         |          | Soak only: all players join at once instead of ramping. It only works for **Silk Road**; bonanza no longer has a `Soak` simulation (it is gRPC-only now).                                |
 | `--requests`         | the simulation's default, `10000`           |          | Basic only: total number of requests across all VUs.                                                                                                                                   |
-| `--scenario`         | the first endpoint (`spin` / `BetLevels`)   |          | Basic only: which endpoint or mode. See [Test one endpoint at a time](#test-one-endpoint-at-a-time).                                                                                     |
+| `--scenario`         | the first endpoint (`spin`)                 |          | Basic only: which endpoint or mode. See [Test one endpoint at a time](#test-one-endpoint-at-a-time).                                                                                     |
 
 An unknown flag stops the run with `Unknown arg: <flag>`. A missing required flag stops it with `--variant required`, `--simulation required`, `--container required`, or `ERROR: --game <…> required (or set GAME env var)`.
 
@@ -361,13 +381,13 @@ The verdict uses the same six rows for every simulation. The last column below l
 
 | Simulation | Games                                   | What it does                                                                                                                                                                                                                                            | When to use                                            | Gatling assertions (exit code only)                                                                                                                         |
 |------------|-----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Soak`     | silkroad, bonanza                       | Silk Road: players join over `--ramp-minutes` (or all at once with `--parallel`). Each one then plays for `--duration-minutes`. Bonanza: the number of players rises to `--users` during the ramp and stays there for the duration. Each Bonanza player creates a session, then loops through the game with a 5 s pace. | Release gate. Finds slowdowns and memory leaks.        | Mean response ≤ PR-4 limit, error % ≤ PR-5 limit. Bonanza also needs: ≥ 50 req/s overall, > 100 000 successful requests, `Spin` p95 ≤ 800 ms, `Spin` and `CreateSession` errors ≤ 0.5 %. |
+| `Soak`     | silkroad                                | Players join over `--ramp-minutes` (or all at once with `--parallel`). Each one then plays for `--duration-minutes`.                                                                                                                                    | Release gate. Finds slowdowns and memory leaks.        | Mean response ≤ PR-4 limit, error % ≤ PR-5 limit. |
 | `Stress`   | silkroad                                | New players arrive at a rate rising from 500 to 2500 per minute across `--duration-minutes`. Each one then plays for `--duration-minutes`, so the run lasts up to 5 minutes longer. `--users` and `--ramp-minutes` don't change it.                    | Finding the breaking point.                            | None. Measurement only.                                                                                                                                  |
 | `Spike`    | silkroad                                | For 25 minutes, 200 new players arrive per minute, plus 5 bursts of 1500 players at once (about every 4.5 minutes). Each player plays for 25 minutes, and the run stops at its 30-minute cap. `--users`, `--duration-minutes` and `--ramp-minutes` don't change it. | Checking recovery from sudden rushes.                  | None. Measurement only.                                                                                                                                  |
-| `Basic`    | silkroad, bonanza                       | `--users` VUs start at once and send `--requests` requests in total to one endpoint (or a mode).                                                                                                                                                        | Smoke-testing a single endpoint.                       | Zero failed requests.                                                                                                                                       |
-| `Grpc`     | bonanza, naga777, mutantmerge, zeroday  | The number of players rises to `--users` during the ramp and stays there for the duration. Each player joins over gRPC (`ConnectAndCall`), then spins (`Call`) once per pace interval. This is the path the real game client uses.                      | Release gate for gRPC games.                           | Mean response ≤ PR-4 limit, error % ≤ PR-5 limit, > 50 req/s overall, > 100 000 successful requests, `Spin` p95 ≤ 800 ms, `Spin` and `Join` errors ≤ 0.5 %. |
+| `Basic`    | silkroad                                | `--users` VUs start at once and send `--requests` requests in total to one endpoint (or a mode).                                                                                                                                                        | Smoke-testing a single endpoint.                       | Zero failed requests.                                                                                                                                       |
+| `Grpc`     | silkroad, bonanza, naga777, mutantmerge, zeroday, apsara, candy, colosseum, nagas-treasure | The number of players rises to `--users` during the ramp and stays there for the duration. Each player joins over gRPC (`ConnectAndCall`), then spins (`Call`) once per pace interval. This is the path the real game client uses.                      | Release gate for gRPC games.                           | Mean response ≤ PR-4 limit, error % ≤ PR-5 limit, > 50 req/s overall, > 100 000 successful requests, `Spin` p95 ≤ 800 ms, `Spin` and `Join` errors ≤ 0.5 %. |
 
-> **Small runs of `Grpc` and Bonanza `Soak` always end with `BUILD FAILED` and a non-zero exit code**, even on a perfect server. They must reach 50 req/s and more than 100 000 successful requests, which only a full-size run can do. A 10-player smoke test produces about 2 requests per second. Read `verdict.json` / `summary.html` in that case: these floors are not verdict rows, so the verdict can still be PASS. To lower these limits, use [Advanced runs](#advanced-runs-without-the-wrapper) (`-DrequestRate=… -DeventCount=…`).
+> **Small runs of `Grpc` always end with `BUILD FAILED` and a non-zero exit code**, even on a perfect server. They must reach 50 req/s and more than 100 000 successful requests, which only a full-size run can do. A 10-player smoke test produces about 2 requests per second. Read `verdict.json` / `summary.html` in that case: these floors are not verdict rows, so the verdict can still be PASS. To lower these limits, use [Advanced runs](#advanced-runs-without-the-wrapper) (`-DrequestRate=… -DeventCount=…`).
 >
 > **Stress and Spike run longer than the size you pick**: Stress takes up to `--duration-minutes` + 5 minutes, and Spike about 30 minutes. The CPU / health monitors stop after the ramp plus the duration plus 2 minutes, so they can miss the end. For Spike, pass `--duration-minutes 30 --ramp-minutes 0`. For Stress, pass `--ramp-minutes 4`. Spike ignores both values and Stress ignores the ramp, so they only make the monitors cover the whole run, with a minute to spare for Gradle start-up. In the menu, enter them under **Custom**. To change the Stress or Spike shape, use [Advanced runs](#advanced-runs-without-the-wrapper).
 >
@@ -377,12 +397,11 @@ The verdict uses the same six rows for every simulation. The last column below l
 
 | Game          | `users` | `durationMinutes` | `rampMinutes` | `paceSec` | `requestRate` (req/s floor) | `eventCount` (success floor) | `grpcHost` | `grpcPort` | Game-only settings (Gradle only)           |
 |---------------|---------|-------------------|---------------|-----------|-----------------------------|------------------------------|------------|------------|--------------------------------------------|
+| `silkroad`    | 1000    | 60                | 2             | 5         | 50                          | 100000                       | localhost  | 9093       | `bet=1.00`                                 |
 | `bonanza`     | 1000    | 60                | 2             | 5         | 50                          | 100000                       | localhost  | 9091       | none                                       |
 | `naga777`     | 1000    | 60                | 2             | 5         | 50                          | 100000                       | localhost  | 9096       | `coinValue=5`, `coinPerLine=3`             |
 | `mutantmerge` | 1000    | 60                | 2             | 5         | 50                          | 100000                       | localhost  | 9104       | `betLevelId=3`, `superBet=false`           |
 | `zeroday`     | 1000    | 60                | 2             | 5         | 50                          | 100000                       | localhost  | 9103       | `bet=1.00`                                 |
-
-Bonanza's REST `Soak` uses the same `rampMinutes=2`, `paceSec=5`, `requestRate=50` and `eventCount=100000` defaults.
 
 ### Standard examples
 
@@ -395,11 +414,9 @@ These are the same commands the menu builds. **Smoke** is 10 players for 1 minut
 ./scripts/run-variant.sh --game silkroad --variant target --simulation Soak \
   --users 1000 --duration-minutes 60 --ramp-minutes 5 --container game-silk-road-caravans
 
-# Golden Boat Bonanza — smoke / REST production gate / gRPC production gate (port 3005 is automatic)
-./scripts/run-variant.sh --game bonanza --variant target --simulation Soak \
+# Golden Boat Bonanza — smoke / production gate (gRPC only, no HTTP port)
+./scripts/run-variant.sh --game bonanza --variant target --simulation Grpc \
   --users 10 --duration-minutes 1 --ramp-minutes 0 --container game-golden-boat-bonanza
-./scripts/run-variant.sh --game bonanza --variant target --simulation Soak \
-  --users 1000 --duration-minutes 60 --ramp-minutes 5 --container game-golden-boat-bonanza
 ./scripts/run-variant.sh --game bonanza --variant target --simulation Grpc \
   --users 1000 --duration-minutes 60 --ramp-minutes 2 --container game-golden-boat-bonanza
 
@@ -426,21 +443,18 @@ For the menu's **Quick check**, use `--variant baseline --users 200 --duration-m
 
 ### Test one endpoint at a time
 
-Use `--simulation Basic --scenario <name>` to hit a single endpoint instead of the full player journey. Only Silk Road and Bonanza have REST endpoints to test.
+Use `--simulation Basic --scenario <name>` to hit a single endpoint instead of the full player journey. Only Silk Road has REST endpoints to test — Bonanza's REST simulations (including `Basic`) were removed; it is gRPC-only now.
 
 | Game       | Endpoints (`--scenario`)                                                               | Modes                   |
 |------------|----------------------------------------------------------------------------------------|-------------------------|
 | `silkroad` | `spin`, `last-spin`, `history-summary`                                                 | `all`, `chain`, `burst` |
-| `bonanza`  | `BetLevels`, `ReelStrips`, `CreateSession`, `Spin`, `JackpotPools`, `HistorySessions`  | `all`, `chain`, `burst` |
 
 - **One endpoint**: `--users` VUs start at once, and each sends `--requests ÷ --users` requests (at least 1).
 - **`all`**: the same, for every endpoint at the same time.
 - **`chain`**: each VU calls every endpoint in order, repeated until the request budget is used.
 - **`burst`**: `--users` VUs per endpoint, all at once, one request each.
 
-The names are case-sensitive. A wrong name fails with `Unknown scenario: '<name>'. Valid: …`. The menu lists Silk Road's endpoints and modes, and Bonanza's endpoints. Bonanza's modes work through the wrapper too.
-
-Bonanza's stateful endpoints (`BonusStart`, `BonusReveal`, `HistoryRounds`, `RoundDetail`) can't be tested alone, because they need state from an earlier session or spin. They run inside `Soak`.
+The names are case-sensitive. A wrong name fails with `Unknown scenario: '<name>'. Valid: …`. The menu lists Silk Road's endpoints and modes.
 
 **Template.** It assumes the Quick start exports. Otherwise pass literal values.
 
@@ -460,18 +474,12 @@ Bonanza's stateful endpoints (`BonusStart`, `BonusReveal`, `HistoryRounds`, `Rou
 | `silkroad` | `spin`            | 500       | 5 000        | Main game action.                           |
 | `silkroad` | `last-spin`       | 500       | 5 000        | Read-only.                                  |
 | `silkroad` | `history-summary` | 500       | 5 000        | Read-only.                                  |
-| `bonanza`  | `BetLevels`       | 1 000     | 10 000       | Static config, cheap.                       |
-| `bonanza`  | `ReelStrips`      | 1 000     | 10 000       | Static config, cheap.                       |
-| `bonanza`  | `CreateSession`   | 500       | 2 000        | Heavier: one session is created per request. |
-| `bonanza`  | `Spin`            | 500       | 5 000        | Returns HTTP 201, not 200.                  |
-| `bonanza`  | `JackpotPools`    | 1 000     | 10 000       | Read-only.                                  |
-| `bonanza`  | `HistorySessions` | 500       | 5 000        | Read-only.                                  |
 
 ### Game-specific checks
 
-**Silk Road.** A REST-only game. The load-test compose file turns off the real wallet and cheats, and replaces the ZMQ publisher with a mock, so no outside services are needed.
+**Silk Road.** REST is still the main path (`Soak`, `Stress`, `Spike`, `Basic`), and it now also has a `Grpc` simulation (gRPC port `9093`, pluginName `game-silk-road-caravans`). The load-test compose file turns off the real wallet and cheats, and replaces the ZMQ publisher with a mock, so no outside services are needed. It has no HTTP health endpoint anymore either — the Docker healthcheck probes the gRPC port instead, and the wrapper falls back to polling that (see [Troubleshooting](#troubleshooting)).
 
-**Golden Boat Bonanza.** The auto-start compose is gRPC-only (no HTTP port), so only the `Grpc` test works against it; the `Grpc` test needs gRPC port `9091` reachable on `localhost`. The `Soak` / `Basic` REST simulations need a different deployment that serves HTTP on port `3005` under `/golden`, where `Spin` returns **201**.
+**Golden Boat Bonanza.** gRPC-only now: its REST simulations (`Soak`, `Basic`) and REST source files were removed. The auto-start compose has no HTTP port at all, so only the `Grpc` test works against it; it needs gRPC port `9091` reachable on `localhost`.
 
 **Naga's Fortune 777.** gRPC only: over HTTP the backend offers nothing but its health check. The spin time measured is the gRPC acknowledgement, because the full spin result is pushed over ZMQ. The server derives the bet as `coinValue × coinPerLine × 5`, which is 75 by default. More detail in [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md).
 
@@ -610,7 +618,7 @@ python3 scripts/generate-final-report.py \
 - For each variant (`baseline`, `target`, `stress`, `critical`) it takes the **newest** run folder, whatever simulation that run was. A variant never run shows as `N/A`.
 - It fills a PR-1 to PR-7 table from the `target` run: at least 1000 players, at least 60 minutes, no health gap of 5 s or more, mean ≤ 500 ms, errors ≤ 1 %, and the CPU / memory results from `verdict.json`. The final verdict counts every row except PR-2 (duration). These limits are fixed in the script; the per-game YAML limits don't apply.
 - It adds a CPU / memory table for all four variants, plus latency percentiles and a resource summary for `target`. The CPU % in that resource summary is the raw `docker stats` value, not divided by the core count.
-- The latency and error rows need `gatling-report/js/stats.json`, and only the gRPC tests (Gatling 3.9.5) write that file. For REST runs (Silk Road, Bonanza `Soak` / `Basic`) those rows are `N/A`, so the final verdict reads FAIL. Use `summary.html` for those games.
+- The latency and error rows need `gatling-report/js/stats.json`, and only the gRPC tests (Gatling 3.9.5) write that file. For Silk Road's REST runs (`Soak`, `Stress`, `Spike`, `Basic`) those rows are `N/A`, so the final verdict reads FAIL. Use `summary.html` for those runs.
 - `--host` / `--port` only fill the "SUT" line of the report.
 
 ## Troubleshooting
@@ -628,9 +636,9 @@ python3 scripts/generate-final-report.py \
 | `[ensure-sut] ERROR: couldn't start the game server …` with `env file … .env.staging not found`  | The Silk Road, Naga's Fortune 777 and Zero Day compose files read `.env.staging` from the backend folder. Make sure that file is there.                                                                                                                         |
 | `[ensure-sut] ERROR: the server didn't come up within 300s. …`                                   | Read the 50 log lines printed above the error. Often Mongo / Redis are still starting, or the app failed at boot. Fix it, then run again. The next run reuses the running container.                                                                            |
 | `Connection refused`, or the curl health check fails                                             | The server isn't up. Run `docker ps --filter name=<container>` and `docker logs <container> 2>&1 \| tail -50`. Right after start-up, wait and retry.                                                                                                            |
-| `health.csv` shows only `000` or 5-second rows                                                   | The probe URL doesn't answer `2xx`. The wrapper uses `http://localhost:<port>` plus: silkroad `/actuator/health`, bonanza `/golden/api/configs/bet-levels`, naga777 and mutantmerge `/health`, zeroday `/api/game/zeroday/actuator/health`. Check that the server is on that port and path, or pass `--port`. |
+| `health.csv` shows only `000` or 5-second rows                                                   | The probe URL doesn't answer `2xx`. The wrapper uses `http://localhost:<port>` plus: naga777 and mutantmerge `/health`, zeroday `/api/game/zeroday/actuator/health`. Silkroad and bonanza have no HTTP health endpoint anymore — the wrapper leaves the URL empty and `health-poll.sh` instead polls the container's Docker healthcheck status, writing `200`/`0.000` when healthy or `000`/`0.000` otherwise. Check that the server is on that port and path (or has a working Docker healthcheck for silkroad / bonanza), or pass `--port`. |
 | `resource.csv` is all `N/A`, and CPU / Mem rows FAIL                                              | No container has the name passed to `--container`, and nothing listens on `--port`. Check with `docker ps`. Without samples, the CPU and memory rows fail.                                                                                                      |
-| `BUILD FAILED` and a non-zero exit code, but `verdict.json` says PASS                            | Gatling assertions and the verdict are separate. For small `Grpc` or Bonanza `Soak` runs, the 50 req/s and 100 000-request floors can't be reached. See [The simulations](#the-simulations).                                                                  |
+| `BUILD FAILED` and a non-zero exit code, but `verdict.json` says PASS                            | Gatling assertions and the verdict are separate. For small `Grpc` runs, the 50 req/s and 100 000-request floors can't be reached. See [The simulations](#the-simulations).                                                                  |
 | Gradle can't find task `:games:<game>:<simulation>`                                              | That game doesn't have that simulation. Check [Games today](#games-today).                                                                                                                                                                                    |
 | `Unknown variant: …`, then an empty `verdict.json` and no `summary.html`                         | `--variant` must be `baseline`, `target`, `stress` or `critical`. The verifier checks it only after the test, so the test itself did run.                                                                                                                      |
 | `Unknown arg: …`, or `… required`                                                                | A mistyped flag, or a missing `--game` / `--variant` / `--simulation` / `--container`. See [Wrapper flags](#wrapper-flags).                                                                                                                                    |
@@ -712,7 +720,7 @@ The ceilings live under `variants:` in the SLA YAML (next section). CPU is divid
 
 ### Runtime defaults and game overrides
 
-`LoadTestConfigLoader` resolves host, port, context path and load shape for the **Java REST simulations** (silkroad, bonanza `soak` / `basic`). Layers run from lowest to highest priority:
+`LoadTestConfigLoader` resolves host, port, context path and load shape for the **Java REST simulations** (silkroad only — bonanza's REST layer was removed, it's gRPC-only now). Layers run from lowest to highest priority:
 
 1. Hardcoded fallback in `LoadTestDefaults.fallback()`, the same values as the next file.
 2. `classpath:load-test-defaults.yml`, bundled from `core/src/main/resources/load-test-defaults.yml`.
@@ -733,12 +741,10 @@ The ceilings live under `variants:` in the SLA YAML (next section). CPU is divid
 
 Shipped `game.yml` files:
 
-- **bonanza** sets `http.port: 3005` and `http.contextPath: /golden`.
-- **silkroad, naga777, mutantmerge and zeroday** have comments only.
+- **All nine games** have comments only now. bonanza's `http.port: 3005` / `http.contextPath: /golden` override was removed along with its REST layer (bonanza is gRPC-only).
 
 **Exceptions:**
 
-- **bonanza `SoakSimulation`** reads `rampMinutes` straight from `-D`, with a default of `2`.
 - **The Scala gRPC simulations don't use `LoadTestConfig` at all.** That class is compiled against Gatling 3.15's Java API and would drag 3.15 types onto their 3.9.5 classpath. They read every `-D` value directly with their own defaults, so their `game.yml` is documentation only.
 - **The wrapper always passes `-Dusers`, `-DdurationMinutes`, `-DrampMinutes` and `-Dport`.** Under the wrapper, the port in `game.yml` is replaced by the wrapper's per-game port (see [Phase 8](#phase-8-wire-the-wrapper-script)), and the YAML load values are replaced by the wrapper's own defaults. `host` and `contextPath` still come from YAML.
 
@@ -752,23 +758,28 @@ These flags reach a simulation only when you call Gradle directly. The wrapper p
 
 | Game          | `FORWARDED_PROPS`                                                                                                   |
 |---------------|---------------------------------------------------------------------------------------------------------------------|
-| `silkroad`    | `users`, `requests`, `durationMinutes`, `rampMinutes`, `thinkTimeMin`, `thinkTimeMax`, `host`, `port`, `contextPath`, `parallel`, `scenario`, `maxResponseTimeMs`, `usersStart`, `usersEnd`, `baseline`, `spike`, `spikeDurationSec`, `cycles`, `cycleIntervalMinutes` |
-| `bonanza` (REST and `grpc` share one list) | `users`, `requests`, `durationMinutes`, `rampMinutes`, `thinkTimeMin`, `thinkTimeMax`, `host`, `port`, `contextPath`, `scenario`, `maxResponseTimeMs`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort` |
+| `silkroad` REST (`soak`/`stress`/`spike`/`basic`) | `users`, `requests`, `durationMinutes`, `rampMinutes`, `thinkTimeMin`, `thinkTimeMax`, `host`, `port`, `contextPath`, `parallel`, `scenario`, `maxResponseTimeMs`, `usersStart`, `usersEnd`, `baseline`, `spike`, `spikeDurationSec`, `cycles`, `cycleIntervalMinutes` |
+| `silkroad` `grpc` (separate list) | `users`, `durationMinutes`, `rampMinutes`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `bet` |
+| `bonanza` (gRPC-only, one list) | `users`, `durationMinutes`, `rampMinutes`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort` |
 | `naga777`     | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `coinValue`, `coinPerLine` |
 | `mutantmerge` | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `betLevelId`, `superBet` |
 | `zeroday`     | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `bet` |
+| `apsara`      | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `betSize`, `coinValue` |
+| `candy`       | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `coinValue`, `betLevel` |
+| `colosseum`   | `users`, `durationMinutes`, `rampMinutes`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `betCoinValue`, `betLevel` |
+| `nagas-treasure` | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `bet` |
 
-The gRPC-only games forward `host` and `port`, but their Scala simulations don't read them. The gRPC endpoint comes only from `grpcHost` / `grpcPort`.
+silkroad now has two separate lists (REST tasks vs. its `grpc` task) instead of one shared list — that arrangement moved from bonanza to silkroad. Most gRPC-only games forward `host` and `port` too, even though their Scala simulations don't read them (colosseum's list omits them entirely). The gRPC endpoint always comes from `grpcHost` / `grpcPort`.
 
 **Shared load flags** (REST simulations, via `LoadTestConfig` unless noted):
 
 | Flag                | Default           | Meaning                                                                                  |
 |---------------------|-------------------|------------------------------------------------------------------------------------------|
-| `users`             | `1000`            | silkroad Soak: VUs injected (open model). bonanza Soak and all gRPC simulations: concurrent VUs (closed model). Basic: VUs started at once. |
+| `users`             | `1000`            | silkroad Soak: VUs injected (open model). All gRPC simulations (including bonanza's and silkroad's): concurrent VUs (closed model). Basic: VUs started at once. |
 | `durationMinutes`   | `60`              | Steady-state minutes. In Stress, the length of the arrival-rate ramp.                   |
-| `rampMinutes`       | `5`; `2` for bonanza Soak and all gRPC simulations | Ramp-up minutes before steady state.                      |
+| `rampMinutes`       | `5`; `2` for all gRPC simulations (including bonanza's and silkroad's) | Ramp-up minutes before steady state.                      |
 | `requests`          | `10000`           | Basic only: total request budget. Each VU repeats `max(1, requests / users)` times.     |
-| `host`, `port`, `contextPath` | `localhost`, `3000`, `""` (bonanza: `3005`, `/golden`) | REST base URL. Override these to target staging.   |
+| `host`, `port`, `contextPath` | `localhost`, `3000`, `""` | REST base URL, silkroad only now — bonanza's `3005`/`/golden` override went away with its REST layer. Override these to target staging.   |
 | `thinkTimeMin`, `thinkTimeMax` | `1`, `3`  | Seconds of random pause after each primary request in silkroad journeys.                 |
 | `scenario`          | first endpoint    | Basic only: an endpoint name, or `all` / `chain` / `burst`. An unknown value fails with `Unknown scenario: '<x>'. Valid: …`. |
 | `parallel`          | `false`           | silkroad Soak only: `true` injects all users at once (no ramp).                           |
@@ -785,7 +796,7 @@ The gRPC-only games forward `host` and `port`, but their Scala simulations don't
 | `cycleIntervalMinutes` | `5`     | Spike: length of one cycle. Total run = `cycles × cycleIntervalMinutes`. Spike ignores `durationMinutes` and `rampMinutes`. |
 | `spikeDurationSec`     | `30`    | Spike: the wait before each burst is `cycleIntervalMinutes × 60 − spikeDurationSec` seconds. |
 
-**bonanza Soak and all gRPC simulations:**
+**All gRPC simulations** (bonanza, silkroad `grpc`, naga777, mutantmerge, zeroday, apsara, candy, colosseum, nagas-treasure):
 
 | Flag          | Default                  | Meaning                                                                                  |
 |---------------|--------------------------|------------------------------------------------------------------------------------------|
@@ -793,7 +804,7 @@ The gRPC-only games forward `host` and `port`, but their Scala simulations don't
 | `requestRate` | `50`                     | Gatling assertion: global requests per second must beat this floor. Use `0` for short smokes. |
 | `eventCount`  | `100000`                 | Gatling assertion: successful requests must exceed this count. Use `0` for short smokes.  |
 | `grpcHost`    | `localhost`              | gRPC simulations only.                                                                    |
-| `grpcPort`    | `9091` bonanza, `9096` naga777, `9104` mutantmerge, `9103` zeroday | gRPC simulations only.                          |
+| `grpcPort`    | `9091` bonanza, `9093` silkroad, `9096` naga777, `9104` mutantmerge, `9103` zeroday, `9095` apsara, `9098` candy, `9102` colosseum, `9092` nagas-treasure | gRPC simulations only. |
 
 **Game-specific bet flags:**
 
@@ -804,6 +815,15 @@ The gRPC-only games forward `host` and `port`, but their Scala simulations don't
 | `mutantmerge` | `betLevelId`   | `3`      | 1-based index into the bet ladder, sent as a string. The simulation notes the default as $1.00. |
 | `mutantmerge` | `superBet`     | `false`  | `true` adds `superBet: true` to each spin.                                               |
 | `zeroday`     | `bet`          | `1.00`   | Decimal on the bet ladder `0.20`–`100.00` (25 steps). An off-ladder value fails when the simulation loads, before any request. |
+| `apsara`      | `betSize`      | `1`      | Must be an exact member of the backend's `betSizes` list (1–10).                          |
+| `apsara`      | `coinValue`    | `0.10`   | Must be an exact member of the backend's `coinValues` list (0.01–1.20).                   |
+| `candy`       | `coinValue`    | `0.10`   | Combined with `betLevel` (1–10 level): `Total Bet = coinValue × betLevel × 20`.            |
+| `candy`       | `betLevel`     | `1`      | Bet level 1–10; an off-grid combination with `coinValue` is rejected.                      |
+| `colosseum`   | `betCoinValue` | (backend default) | One of `0.03`/`0.10`/`0.30`/`0.90`; combined with `betLevel`: total bet = `betCoinValue × betLevel × 20`. |
+| `colosseum`   | `betLevel`     | (backend default) | Bet level 1–10.                                                                    |
+| `nagas-treasure` | `bet`       | `1.00`   | Must exactly match (±0.001) one of the backend's allowed bet steps.                        |
+
+silkroad's `grpc` task reads the same `bet` flag as its REST simulations, on the same 24-step ladder (`0.10`–`100.00`), default `1.00`.
 
 ## Advanced runs without the wrapper
 
@@ -811,33 +831,39 @@ Call `./gradlew :games:<game>:<alias>` directly when you need something the wrap
 
 - **Stress or Spike shape**: `-DusersStart`, `-DusersEnd`, `-Dbaseline`, `-Dspike`, `-Dcycles`, …
 - **gRPC endpoint override**: `-DgrpcHost`, `-DgrpcPort`.
-- **gRPC and bonanza Soak tuning**: `-DpaceSec`, `-DrequestRate`, `-DeventCount`, and the bet flags above.
+- **gRPC tuning (all gRPC simulations, including bonanza's)**: `-DpaceSec`, `-DrequestRate`, `-DeventCount`, and the bet flags above.
 - **Running an arbitrary simulation by fully qualified class name (FQCN).**
 - **Fast iteration while developing a game**: no monitor start-up and no verdict.
 
-You get only the Gatling HTML report at `games/<game>/build/reports/gatling/<simulationclass>-<timestamp>/index.html`. There is **no `summary.html`, no `verdict.json` and no CSVs**. If a Gatling assertion fails, the Gradle task fails. Short runs of bonanza Soak and the gRPC simulations always fail the `requestRate` / `eventCount` floors unless you pass `-DrequestRate=0 -DeventCount=0`.
+You get only the Gatling HTML report at `games/<game>/build/reports/gatling/<simulationclass>-<timestamp>/index.html`. There is **no `summary.html`, no `verdict.json` and no CSVs**. If a Gatling assertion fails, the Gradle task fails. Short runs of the gRPC simulations (bonanza included) always fail the `requestRate` / `eventCount` floors unless you pass `-DrequestRate=0 -DeventCount=0`.
 
 ### Gradle commands per game
 
 Run these from the repo root. Replace the `<…>` placeholders with your own staging values.
 
 ```bash
-# silkroad (REST, Gatling 3.15)
+# silkroad REST (Gatling 3.15)
 ./gradlew :games:silkroad:basic  -Dscenario=spin -Dusers=1 -Drequests=1
 ./gradlew :games:silkroad:soak   -Dusers=50 -DdurationMinutes=1 -DrampMinutes=1
 ./gradlew :games:silkroad:stress -DusersStart=10 -DusersEnd=200 -DdurationMinutes=5
 ./gradlew :games:silkroad:spike  -Dbaseline=5 -Dspike=50 -Dcycles=3 -DcycleIntervalMinutes=1
 
-# bonanza REST (port 3005 and contextPath /golden come from game.yml)
-./gradlew :games:bonanza:basic -Dscenario=BetLevels -Dusers=1 -Drequests=1
-./gradlew :games:bonanza:soak  -Dusers=10 -DdurationMinutes=5 -DrampMinutes=1 \
-  -DrequestRate=0 -DeventCount=0
-# bonanza REST against another host
-./gradlew :games:bonanza:soak -Dhost=<rest-host> -Dport=<rest-port> -DcontextPath=/golden
+# silkroad gRPC (Gatling 3.9.5; separate half added alongside the REST one above)
+./gradlew :games:silkroad:grpc -Dusers=5 -DdurationMinutes=1 -DrampMinutes=1 \
+  -DgrpcHost=localhost -DgrpcPort=9093 -Dbet=1.00
 
-# bonanza gRPC (Gatling 3.9.5; separate channel, no contextPath)
+# bonanza (gRPC-only; its REST layer was removed)
+./gradlew :games:bonanza:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 \
+  -DrequestRate=0 -DeventCount=0
 ./gradlew :games:bonanza:grpc -Dusers=10 -DdurationMinutes=5 -DrampMinutes=1 \
   -DgrpcHost=localhost -DgrpcPort=9091
+
+# apsara gRPC
+./gradlew :games:apsara:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 \
+  -DrequestRate=0 -DeventCount=0
+./gradlew :games:apsara:grpc -Dusers=1000 -DdurationMinutes=60 -DbetSize=1 -DcoinValue=0.10
+# candy, colosseum and nagas-treasure gRPC follow the same pattern with their own bet flags
+# (see Game-specific bet flags above)
 
 # naga777 gRPC
 ./gradlew :games:naga777:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 \
@@ -863,18 +889,16 @@ To list a game's tasks, run `./gradlew :games:<game>:tasks --group=gatling`.
 
 ### Run any simulation by class name
 
-Only the modules that apply the Gatling Gradle plugin (silkroad and bonanza) have the plugin's `gatlingRun` task:
+Only the module that applies the Gatling Gradle plugin (silkroad — bonanza dropped the plugin along with its REST layer) has the plugin's `gatlingRun` task:
 
 ```bash
 ./gradlew :games:silkroad:gatlingRun \
   --simulation com.rgp.loadtest.silkroad.simulations.SoakSimulation
-./gradlew :games:bonanza:gatlingRun \
-  --simulation com.rgp.loadtest.bonanza.simulations.BasicSimulation
 ```
 
 - `gatlingRun` is the plugin's own task. It doesn't add `gameName` or read `FORWARDED_PROPS`, but the plugin still copies your `-D` flags into the fork (see [Gradle system properties](#gradle-system-properties)). Its SLA assertions match the alias's, because the per-game file layer never resolves inside a simulation fork anyway (see [SLA thresholds and load order](#sla-thresholds-and-load-order)).
-- On bonanza, `gatlingRun` sees only the REST source set (`src/gatling/java`). The gRPC simulation lives in the separate `gatlingGrpc` source set, and only the `grpc` task runs it.
-- naga777, mutantmerge and zeroday have no `gatlingRun`. Each entry in their `SIMULATIONS` map becomes a `JavaExec` task, so a new Scala simulation there needs a new map entry. bonanza's `grpc` task is hard-wired to `BonanzaGrpcSimulation`.
+- On silkroad, `gatlingRun` sees only the REST source set (`src/gatling/java`). The gRPC simulation lives in the separate `gatlingGrpc` source set, and only the `grpc` task runs it.
+- naga777, mutantmerge, zeroday, apsara, candy, colosseum and nagas-treasure have no `gatlingRun`. Each entry in their `SIMULATIONS` map becomes a `JavaExec` task, so a new Scala simulation there needs a new map entry. bonanza's and silkroad's `grpc` tasks are each hard-wired by hand to their one Scala simulation instead of going through a `SIMULATIONS` map.
 
 ### Rerun the verifier on existing results
 
@@ -919,11 +943,11 @@ Shared versions are pinned in the root `build.gradle` (`ext { … }`). The gRPC 
 |-------------------------------|-------------|-----------------------------------------------------------------------------------|
 | Java toolchain                | **17**      | Every subproject (`javaTargetVersion`).                                            |
 | Gradle wrapper                | 9.2.1       | `gradle/wrapper/gradle-wrapper.properties`. No separate install needed.           |
-| Gatling (REST simulations)    | **3.15.0**  | `gatlingVersion`, exported by `:core` as an `api` dependency. silkroad, bonanza `soak` / `basic`. |
-| Gatling Gradle plugin         | 3.15.0.2    | `gatlingGradleVersion`, applied by silkroad and bonanza only.                     |
-| Gatling (gRPC simulations)    | **3.9.5**   | `gatlingOssVersion` in bonanza, naga777, mutantmerge and zeroday. See [gRPC runtimes](#grpc-runtimes). |
+| Gatling (REST simulations)    | **3.15.0**  | `gatlingVersion`, exported by `:core` as an `api` dependency. silkroad only — bonanza's REST layer was removed. |
+| Gatling Gradle plugin         | 3.15.0.2    | `gatlingGradleVersion`, applied by silkroad only now.                     |
+| Gatling (gRPC simulations)    | **3.9.5**   | `gatlingOssVersion` in bonanza, silkroad, naga777, mutantmerge, zeroday, apsara, candy, colosseum and nagas-treasure. See [gRPC runtimes](#grpc-runtimes). |
 | gRPC DSL                      | `com.github.phisgr:gatling-grpc` 0.17.0 | `gatlingGrpcVersion`. Community plugin with no VU cap.  |
-| Scala library                 | **2.13.12** | The four gRPC simulations only. See [Scala gRPC simulations](#scala-grpc-simulations). |
+| Scala library                 | **2.13.12** | All nine games' gRPC simulations. See [Scala gRPC simulations](#scala-grpc-simulations). |
 | gRPC Java / Protobuf          | 1.75.0 / 4.32.1 | `grpcVersion` / `protobufVersion`. Stubs generated in `:core` from `plugin_service.proto`. |
 | Protobuf Gradle plugin        | 0.9.5       | `protobufPluginVersion` (`com.google.protobuf`, in `:core`).                      |
 | SnakeYAML                     | 2.2         | SLA and runtime YAML loaders in `:core`.                                          |
@@ -939,9 +963,9 @@ The reason is a hard limit. Gatling 3.15's first-party gRPC DSL (`io.gatling:gat
 
 The community plugin is Apache 2.0 and has no cap. Its last release (0.17.0) targets Gatling 3.9.5, but the matching `io.gatling.gradle` 3.9.5.x fails on Gradle 9 (`unknown property 'reportsDir'`). So the gRPC simulations skip the Gatling Gradle plugin entirely. Each one builds its own Gatling 3.9.5 classpath in a dedicated configuration and launches `io.gatling.app.Gatling` through a plain `JavaExec` task. The task writes its reports into `build/reports/gatling`, the same place the plugin uses, so the wrapper picks them up unchanged.
 
-- **naga777, mutantmerge and zeroday** are gRPC-only. The whole module is on 3.9.5: configuration `gatlingRt`, source set `gatling`, sources in `src/gatling/scala`.
-- **bonanza** ships both runtimes, so it is split. `src/gatling/java` (REST) stays on 3.15 under the Gatling Gradle plugin. `src/gatlingGrpc/scala` compiles and runs against 3.9.5 (configuration `gatlingGrpcRt`, source set `gatlingGrpc`). The two classpaths never mix.
-- **silkroad** is REST-only and untouched. Gatling's HTTP DSL is fully OSS and uncapped, so there is no reason to move it.
+- **naga777, mutantmerge, zeroday, apsara, candy, colosseum and nagas-treasure** are gRPC-only. The whole module is on 3.9.5: configuration `gatlingRt`, source set `gatling`, sources in `src/gatling/scala`.
+- **bonanza** is gRPC-only too, but it kept the `gatlingGrpcRt` configuration / `gatlingGrpc` source set naming (`src/gatlingGrpc/scala`) from when it used to have a REST layer alongside it. It no longer applies the Gatling Gradle plugin at all.
+- **silkroad** now ships both runtimes, so it is split — the arrangement bonanza used to have. `src/gatling/java` (REST) stays on 3.15 under the Gatling Gradle plugin. `src/gatlingGrpc/scala` compiles and runs against 3.9.5 (configuration `gatlingGrpcRt`, source set `gatlingGrpc`). The two classpaths never mix.
 - Every gRPC runtime pulls in `project(':core')` for the proto stubs, the MessagePack `Codec` and `SlaConstants`. It uses `exclude group: 'io.gatling'` and `exclude group: 'io.gatling.highcharts'` so that the Gatling 3.15 which `:core` exports never lands on the 3.9.5 classpath.
 
 Everything downstream works unchanged: the wrapper, the threshold verifier and `summary.html`. Gatling 3.9 prints its console summary as `> request count  640 (OK=640  KO=0 )` instead of the pipe-delimited table that 3.15 uses, so the threshold verifier parses both shapes.
@@ -950,14 +974,19 @@ Everything downstream works unchanged: the wrapper, the threshold verifier and `
 
 ### Scala gRPC simulations
 
-The harness is Java except for **four Scala files**, one gRPC simulation per game:
+The harness is Java except for **nine Scala files**, one gRPC simulation per game:
 
 | File                                                                                         | `pluginName`            | Default `grpcPort` | Extra flags                | Spin check |
 |----------------------------------------------------------------------------------------------|-------------------------|--------------------|----------------------------|------------|
-| `games/bonanza/src/gatlingGrpc/scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala` | `golden-boat-bonanza` | `9091`             | none                       | gRPC status only |
+| `games/bonanza/src/gatlingGrpc/scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala` | `game-golden-boat-bonanza` | `9091`          | none                       | gRPC status only |
+| `games/silkroad/src/gatlingGrpc/scala/com/rgp/loadtest/silkroad/grpc/SilkroadGrpcSimulation.scala` | `game-silk-road-caravans` | `9093`      | `bet`                      | gRPC status only (the reply is empty and the result goes over ZMQ) |
 | `games/naga777/src/gatling/scala/com/rgp/loadtest/naga777/grpc/Naga777GrpcSimulation.scala`   | `game-naga-fortune-777` | `9096`           | `coinValue`, `coinPerLine` | gRPC status only (the result is pushed over ZMQ) |
 | `games/mutantmerge/src/gatling/scala/com/rgp/loadtest/mutantmerge/grpc/MutantMergeGrpcSimulation.scala` | `yama_01024` | `9104`          | `betLevelId`, `superBet`   | Decodes the reply and fails on a non-zero `c` |
 | `games/zeroday/src/gatling/scala/com/rgp/loadtest/zeroday/grpc/ZeroDayGrpcSimulation.scala`   | `yama_01023`            | `9103`             | `bet`                      | gRPC status only (the reply is empty and the result goes over ZMQ) |
+| `games/apsara/src/gatling/scala/com/rgp/loadtest/apsara/grpc/ApsaraGrpcSimulation.scala`      | `game-apsara-paradise`  | `9095`             | `betSize`, `coinValue`     | gRPC status only (the result is also pushed over ZMQ) |
+| `games/candy/src/gatling/scala/com/rgp/loadtest/candy/grpc/CandyGrpcSimulation.scala`         | `yama_01018`            | `9098`             | `coinValue`, `betLevel`    | gRPC status only (the reply is empty and the result goes over ZMQ) |
+| `games/colosseum/src/gatling/scala/com/rgp/loadtest/colosseum/grpc/ColosseumGrpcSimulation.scala` | `yama_01022`        | `9102`             | `betCoinValue`, `betLevel` | gRPC status only (the reply is empty and the result goes over ZMQ) |
+| `games/nagas-treasure/src/gatling/scala/com/rgp/loadtest/nagastreasure/grpc/NagasTreasureGrpcSimulation.scala` | `game-nagas-treasure` | `9092` | `bet`             | gRPC status only (the reply is empty and the result goes over ZMQ) |
 
 **Why Scala?** `com.github.phisgr:gatling-grpc` only ships a Scala DSL (`com.github.phisgr.gatling.grpc.Predef._`), so these simulations are written in Scala 2.13. Their payloads still come from `:core`:
 
@@ -968,10 +997,10 @@ The harness is Java except for **four Scala files**, one gRPC simulation per gam
 **Shared shape.** Every simulation uses the same journey and assertions:
 
 - **Closed model:** `rampConcurrentUsers(0).to(users)` over `rampMinutes`, then `constantConcurrentUsers(users)` for `durationMinutes`.
-- **Per VU:** one `Join` (`ConnectAndCall`), then a `Spin` loop (`Call`) paced at `paceSec`. In naga777, mutantmerge and zeroday, a failed Join stops the VU (`exitHereIfFailed`); bonanza carries on to the loop.
+- **Per VU:** one `Join` (`ConnectAndCall`), then a `Spin` loop (`Call`) paced at `paceSec`. In silkroad, naga777, mutantmerge, zeroday, apsara, candy, colosseum and nagas-treasure, a failed Join stops the VU (`exitHereIfFailed`); bonanza carries on to the loop.
 - **Assertions:** global mean ≤ PR-4, failed % ≤ PR-5, requests/s > `requestRate`, successful requests > `eventCount`, `Spin` p95 ≤ 800 ms, and `Spin` and `Join` failed % ≤ 0.5.
 
-**How it's wired, gRPC-only module** (from `games/zeroday/build.gradle`; naga777 and mutantmerge are identical apart from names and flags):
+**How it's wired, gRPC-only module** (from `games/zeroday/build.gradle`; naga777, mutantmerge, apsara, candy, colosseum and nagas-treasure are identical apart from names and flags):
 
 ```groovy
 plugins {
@@ -1013,12 +1042,12 @@ sourceSets {
 // systemProperty 'gameName', project.name plus every FORWARDED_PROPS name that was set.
 ```
 
-**bonanza differs** in these ways:
+**bonanza and silkroad differ** from the gRPC-only pattern above in these ways:
 
-- It keeps `id 'io.gatling.gradle'` for its REST simulations.
-- It names the configuration `gatlingGrpcRt` and the source set `gatlingGrpc` (`scala.srcDirs = ['src/gatlingGrpc/scala']`).
-- It puts `resources.srcDirs = ['src/gatlingGrpc/resources', 'src/gatling/resources']` on that source set, so its `logback-test.xml` comes first and the shared `game.yml` / `sla-thresholds.yml` are also on the gRPC classpath.
-- It registers one hand-written `grpc` `JavaExec` task that depends on `gatlingGrpcClasses`.
+- They name the configuration `gatlingGrpcRt` and the source set `gatlingGrpc` (`scala.srcDirs = ['src/gatlingGrpc/scala']`) instead of `gatlingRt` / `gatling` — a naming leftover from when bonanza used to have both runtimes (silkroad copied the same arrangement when it gained its own gRPC half).
+- They put `resources.srcDirs = ['src/gatlingGrpc/resources', 'src/gatling/resources']` on that source set, so a module-specific `logback-test.xml` (bonanza has one there; silkroad doesn't) would come first and the shared `game.yml` / `sla-thresholds.yml` are also on the gRPC classpath.
+- They each register one hand-written `grpc` `JavaExec` task that depends on `gatlingGrpcClasses`, instead of going through a `SIMULATIONS` map.
+- Only **silkroad** still keeps `id 'io.gatling.gradle'`, because it also has a live REST layer (`src/gatling/java`) on Gatling 3.15. bonanza dropped that plugin entirely when its REST layer was removed.
 
 **Run it.** Use the wrapper to get `summary.html` and a verdict. Use Gradle directly to override the gRPC endpoint or tuning flags.
 
@@ -1041,7 +1070,7 @@ Tracked files, grouped. Generated output (`build/`, `target/`) is gitignored.
 ├── README.md                         this file
 ├── loadtest.sh                       interactive menu → scripts/run-variant.sh
 ├── build.gradle                      shared Java 17 toolchain, version properties, verifyVariant task
-├── settings.gradle                   includes :core and the five games (4 more commented out)
+├── settings.gradle                   includes :core and nine games (2 more commented out)
 ├── gradlew, gradlew.bat, gradle/wrapper/   Gradle 9.2.1 wrapper
 ├── config/
 │   └── sla-thresholds.yml            repo-wide pass/fail thresholds
@@ -1062,26 +1091,31 @@ Tracked files, grouped. Generated output (`build/`, `target/`) is gitignored.
 │       ├── proto/plugin_service.proto    WSProxy PluginService → Java gRPC stubs
 │       └── resources/                load-test-defaults.yml, sla-thresholds.yml (bundled fallbacks)
 ├── games/
-│   ├── silkroad/                     REST only, Java, stateless (open model)
-│   │   ├── build.gradle
-│   │   ├── docker-compose.loadtest.yml
-│   │   └── src/gatling/
-│   │       ├── java/com/rgp/loadtest/silkroad/   simulations/ scenarios/ requests/ utils/
-│   │       └── resources/            game.yml, sla-thresholds.yml, gatling.conf, logback-test.xml,
-│   │                                 games/silkroad/bodies/*.json
-│   ├── bonanza/                      REST (Java, Gatling 3.15) + gRPC (Scala, Gatling 3.9.5), stateful
+│   ├── silkroad/                     REST (Java, Gatling 3.15) + gRPC (Scala, Gatling 3.9.5), stateless
 │   │   ├── build.gradle
 │   │   ├── docker-compose.loadtest.yml
 │   │   └── src/
 │   │       ├── gatling/
-│   │       │   ├── java/com/rgp/loadtest/bonanza/   simulations/ scenarios/ requests/ utils/
-│   │       │   └── resources/        game.yml, sla-thresholds.yml, games/bonanza/bodies/*.json
+│   │       │   ├── java/com/rgp/loadtest/silkroad/   simulations/ scenarios/ requests/ utils/
+│   │       │   └── resources/        game.yml, sla-thresholds.yml, gatling.conf, logback-test.xml,
+│   │       │                         games/silkroad/bodies/*.json
+│   │       └── gatlingGrpc/
+│   │           └── scala/com/rgp/loadtest/silkroad/grpc/SilkroadGrpcSimulation.scala
+│   ├── bonanza/                      gRPC only (Scala, Gatling 3.9.5) — REST layer removed
+│   │   ├── build.gradle
+│   │   ├── docker-compose.loadtest.yml
+│   │   └── src/
+│   │       ├── gatling/resources/    game.yml, sla-thresholds.yml (shared onto the gRPC classpath)
 │   │       └── gatlingGrpc/
 │   │           ├── scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala
 │   │           └── resources/logback-test.xml
 │   ├── naga777/                      gRPC only, Scala ─┐
-│   ├── mutantmerge/                  gRPC only, Scala  ├─ same layout:
-│   └── zeroday/                      gRPC only, Scala ─┘
+│   ├── mutantmerge/                  gRPC only, Scala  │
+│   ├── zeroday/                      gRPC only, Scala  │
+│   ├── apsara/                       gRPC only, Scala  ├─ same layout:
+│   ├── candy/                        gRPC only, Scala  │
+│   ├── colosseum/                    gRPC only, Scala  │
+│   └── nagas-treasure/               gRPC only, Scala ─┘
 │       ├── build.gradle
 │       ├── docker-compose.loadtest.yml
 │       └── src/gatling/
@@ -1111,7 +1145,7 @@ Tracked files, grouped. Generated output (`build/`, `target/`) is gitignored.
 | `scripts/run-variant.sh` | Full verdict run: SUT check, monitors, Gatling, verifier, summary. | See [Wrapper flags](#wrapper-flags). | `loadtest.sh`, you, CI |
 | `scripts/ensure-sut.sh` | Makes sure the SUT is up and offers to start it if not. | `--game <g> --container <name> --port <N> --health-url <url>` | `run-variant.sh` (step 0) |
 | `scripts/monitor-resources.sh` | Samples CPU and memory into a CSV. | `--container <name> [--fallback-port N] [--interval-sec N] --out <csv> --duration-sec N` (interval defaults to 5) | `run-variant.sh` (background) |
-| `scripts/health-poll.sh` | Probes an HTTP URL into a CSV. | `[--url <url>] [--interval-sec N] --out <csv> --duration-sec N` (interval defaults to 2) | `run-variant.sh` (background) |
+| `scripts/health-poll.sh` | Probes an HTTP URL into a CSV, or a container's Docker healthcheck when `--url` is empty. | `[--url <url>] [--container <name>] [--interval-sec N] --out <csv> --duration-sec N` (interval defaults to 2) | `run-variant.sh` (background) |
 | `scripts/generate-summary-html.py` | Builds `summary.html` from one run directory. | `--variant-dir <dir>` | `run-variant.sh`, or by hand after re-verifying |
 | `scripts/generate-final-report.py` | Builds a Markdown compliance report across variants. | `--variants-dir target/variants/<game> --report-out <file.md> [--host localhost] [--port 3000]` | By hand (see `games/naga777/naga777-load-test-guide.md`) |
 
@@ -1151,7 +1185,7 @@ Tracked files, grouped. Generated output (`build/`, `target/`) is gitignored.
 **Monitor and probe notes:**
 
 - **`monitor-resources.sh`** uses `docker stats` on the container. If the container doesn't exist, it samples the host process listening on `--fallback-port` (found via `lsof`, read via `ps`). Otherwise it writes `N/A` rows.
-- **`health-poll.sh`** marks a sample as failed when the status is non-2xx or the request takes 5 s or more (`curl --max-time 5`). **It stops and exits non-zero after 3 consecutive failures**, whatever `crash.max_consecutive_failures` says. Without `--url`, it tries silkroad-specific paths on `localhost:3000`.
+- **`health-poll.sh`** marks a sample as failed when the status is non-2xx or the request takes 5 s or more (`curl --max-time 5`). **It stops and exits non-zero after 3 consecutive failures**, whatever `crash.max_consecutive_failures` says. Without `--url`, it tries silkroad-specific paths on `localhost:3000` — but for bonanza and silkroad, which have no HTTP health endpoint anymore, `run-variant.sh` leaves `--url` empty and passes `--container` instead, so `health-poll.sh` polls the container's Docker healthcheck (`docker inspect ... .State.Health.Status`) rather than an HTTP endpoint.
 
 **`generate-final-report.py` details:**
 
@@ -1161,7 +1195,7 @@ Tracked files, grouped. Generated output (`build/`, `target/`) is gitignored.
 
 ### Layers inside a game subproject
 
-REST games (silkroad, bonanza REST), under `src/gatling/`:
+REST games (silkroad only now — bonanza's REST layer was removed), under `src/gatling/`:
 
 | Layer               | Responsibility                                                                  |
 |---------------------|---------------------------------------------------------------------------------|
@@ -1176,9 +1210,9 @@ gRPC simulations have no layers. One Scala file holds the payload builders (`bui
 
 ### Two journey patterns
 
-The REST games follow one of two patterns:
+The REST games used to follow one of two patterns. Today silkroad is the only live REST layer; bonanza's REST layer (the "stateful" column below) was removed when it went gRPC-only, but the table is kept as a reference for the two shapes:
 
-| Aspect       | Silkroad (template)                              | Bonanza (stateful)                                              |
+| Aspect       | Silkroad (template)                              | Bonanza (stateful, REST layer removed)                          |
 |--------------|--------------------------------------------------|-----------------------------------------------------------------|
 | Injection    | Open (`rampUsers` / `atOnceUsers`)               | Closed (`rampConcurrentUsers` + `constantConcurrentUsers`)      |
 | Routing      | Ratio-modulo (`userIndex % N == 0`)              | `randomSwitch` weighted (80/8/5/3/2/2)                          |
@@ -1186,9 +1220,9 @@ The REST games follow one of two patterns:
 | Init         | None                                             | Per VU: `BetLevels` → `ReelStrips` → `CreateSession`, then loop |
 | Endpoints    | 3                                                | 10                                                              |
 | Spin status  | `200`                                            | **`201`**                                                       |
-| Languages    | Java only                                        | Java (REST) + Scala (gRPC)                                      |
+| Languages    | Java (REST) + Scala (gRPC)                       | Scala (gRPC) only now                                           |
 
-The four gRPC simulations share a third, simpler shape: closed model, one `Join`, then a paced `Spin` loop (see [Scala gRPC simulations](#scala-grpc-simulations)).
+All nine games' gRPC simulations share a third, simpler shape: closed model, one `Join`, then a paced `Spin` loop (see [Scala gRPC simulations](#scala-grpc-simulations)).
 
 ## Add a new game
 
@@ -1206,9 +1240,9 @@ Before touching code, write these down. Every later step depends on them.
 | **Package name**                | `com.rgp.loadtest.<pkg>`; REST body directory `games/<pkg>/bodies/`                       | `fruitrespinmania` (lowercase, no separators: Java identifiers can't contain `-`) |
 | **Template**                    | Which game to clone (see the table below)                                                 | silkroad                           |
 | **HTTP host / port / contextPath** | REST: `game.yml`. All games: the wrapper's `PORT` and `HEALTH_URL`                     | `localhost` / `4000` / `/fruit`    |
-| **Health URL**                  | `run-variant.sh` `HEALTH_URL` case. Must return 2xx cheaply                               | `http://localhost:4000/fruit/actuator/health` |
+| **Health URL**                  | `run-variant.sh` `HEALTH_URL` case. Must return 2xx cheaply, or leave empty (`""`) for the Docker-healthcheck fallback (Phase 10) if there's no HTTP endpoint | `http://localhost:4000/fruit/actuator/health` |
 | **Endpoints** (REST)            | `utils/Endpoints.java`, `requests/SlotRequests.java`                                      | `spin`, `last-spin`, `history-summary` |
-| **Spin status code** (REST)     | `status().is(...)` in `SlotRequests`                                                      | `200` (silkroad) or `201` (bonanza) |
+| **Spin status code** (REST)     | `status().is(...)` in `SlotRequests`                                                      | `200` (silkroad); match your backend's real code |
 | **Body shape** (REST)           | `bodies/*.json`                                                                           | `{userId, gameId, betAmount}`      |
 | **gRPC port, `pluginName`, bet fields** (gRPC) | Defaults in the Scala simulation; the port is also published in the compose file | `9110`, `<plugin-name>`      |
 | **Container name**              | `container_name` in the compose file, the `GAMES` row in `loadtest.sh`, `--container`     | `game-fruit-respin-mania`          |
@@ -1221,8 +1255,8 @@ Before touching code, write these down. Every later step depends on them.
 | Your game's shape                                                         | Clone                                                                   | Languages / runtime                         |
 |---------------------------------------------------------------------------|-------------------------------------------------------------------------|---------------------------------------------|
 | Stateless REST: each request is independent                               | `games/silkroad/`                                                       | Java, Gatling 3.15 plugin; aliases `soak` / `stress` / `spike` / `basic` |
-| Stateful REST: an init phase (create session), then a loop with captured state | `games/bonanza/`, then remove its gRPC half (see Phase 1)          | Java, Gatling 3.15 plugin; aliases `soak` / `basic` |
-| REST plus the WSProxy gRPC plugin path                                    | `games/bonanza/` as is                                                  | Java + Scala 2.13.12; 3.15 plugin + 3.9.5 (`gatlingGrpcRt`) |
+| Stateful REST: an init phase (create session), then a loop with captured state | No live example in the repo — bonanza dropped its REST layer entirely when it went gRPC-only. Adapt `games/silkroad/`'s stateless flow (add an init request and capture its response into the session), or recover bonanza's old REST source from git history | Java, Gatling 3.15 plugin |
+| REST plus the WSProxy gRPC plugin path                                    | `games/silkroad/` as is (it now has both a REST and a gRPC half)       | Java + Scala 2.13.12; 3.15 plugin + 3.9.5 (`gatlingGrpcRt`) |
 | gRPC only, and the `Call` reply carries the result (business errors as non-zero `c`) | `games/mutantmerge/`                                         | Scala 2.13.12, Gatling 3.9.5 (`gatlingRt`), alias `grpc` |
 | gRPC only, and the result is pushed over ZMQ (the `Call` reply is empty or an ack) | `games/zeroday/` (or `games/naga777/`, whose comments are in Vietnamese) | Scala 2.13.12, Gatling 3.9.5 (`gatlingRt`), alias `grpc` |
 
@@ -1278,20 +1312,11 @@ mv "$f" "${f%/*}/${NEW_CLASS}GrpcSimulation.scala"
 grep -rl "$OLD_CLASS" games/$NEW | xargs sed -i '' "s/$OLD_CLASS/$NEW_CLASS/g"
 ```
 
-**Stateful REST cloned from bonanza: remove the gRPC half.**
-
-1. Delete `src/gatlingGrpc/`.
-2. In `build.gradle`, delete:
-   - `id 'scala'`
-   - `gatlingOssVersion` and `gatlingGrpcVersion`
-   - the `gatlingGrpcRt` configuration and its dependencies
-   - the `sourceSets { gatlingGrpc { … } }` block
-   - the `grpc` task
-   - `grpcHost` and `grpcPort` from `FORWARDED_PROPS`
+**Note on the stateful REST pattern.** bonanza used to be the clone target for a stateful REST game (an init phase plus a loop with captured state), but it dropped its REST layer entirely when it went gRPC-only — there's nothing left to clone that pattern from. If you need it, build it on top of `games/silkroad/`'s stateless flow instead, or pull bonanza's REST source from git history for reference.
 
 ### Phase 2 Wire into Gradle
 
-**2.1 Register the subproject.** `settings.gradle` already has commented stubs for four games, including `// include ':games:fruit-respin-mania'`. Uncomment the matching stub, or add a line next to the existing `include` lines:
+**2.1 Register the subproject.** `settings.gradle` already has a commented stub for this example game, `// include ':games:fruit-respin-mania'` (plus one for `last-guardian-angkor`). Uncomment the matching stub, or add a line next to the existing `include` lines:
 
 ```groovy
 include ':games:zeroday'
@@ -1357,7 +1382,7 @@ Use short, dash-separated names, since they show up in CLI flags and in the `loa
 | HTTP method                  | `.post(...)` vs `.get(...)`                                                              |
 | URL path (after the context) | `.post("/v1/slot/spin")`. Leading `/` only; host and contextPath come from `game.yml`.   |
 | Body file path               | `.body(ElFileBody("games/fruitrespinmania/bodies/spin.json"))`. Uses the **package** form. |
-| Response status check        | `.check(status().is(200))`. bonanza's spin returns **201**.                              |
+| Response status check        | `.check(status().is(200))`. Match your backend's real status code — not every REST endpoint returns 200. |
 | Stateful captures (optional) | `.check(jsonPath("$.data.sessionId").saveAs("sessionId"))`, needed only if a later step reads `#{sessionId}` |
 
 **4.3** `games/$NEW/src/gatling/resources/games/$PKG/bodies/*.json`: one file per endpoint that POSTs a body.
@@ -1373,7 +1398,7 @@ Use short, dash-separated names, since they show up in CLI flags and in the `loa
 Two rules come up over and over:
 
 - **Use Gatling EL `#{userId}`, never `${userId}`.** The latter ships the literal string `${userId}`, so every VU sends the same value. That causes distributed-lock collisions and about 51 % HTTP 400.
-- **Match the backend's exact field types.** A JSON string and a JSON number make different requests. bonanza's `/spin` takes `betAmount` as a **string**, while `/jackpot/*` takes it as a **number**.
+- **Match the backend's exact field types.** A JSON string and a JSON number make different requests — check each endpoint's contract individually; don't assume they all agree.
 
 **gRPC-only games.** Edit `buildJoinRequest` and `buildSpinRequest` in the Scala file:
 
@@ -1385,9 +1410,9 @@ Keep both maps as `java.util.LinkedHashMap` and encode them with `codec.encode(.
 
 ### Phase 5 Scenario
 
-**REST games** use `scenarios/SessionJourneyScenario.java` (silkroad clone) or `scenarios/PlayerJourneyScenario.java` (bonanza clone).
+**REST games** use `scenarios/SessionJourneyScenario.java` (silkroad clone, stateless). There's no live stateful clone anymore — bonanza's `PlayerJourneyScenario.java` was removed when it went gRPC-only — see the note under [Which template to clone](#which-template-to-clone) if you need that pattern.
 
-**5.1** Make the scenario name unique: `DEFAULT_NAME` (silkroad) or `NAME` (bonanza), in the form `<game>-<purpose>`. Step 1.4 usually did this already.
+**5.1** Make the scenario name unique: `DEFAULT_NAME`, in the form `<game>-<purpose>`. Step 1.4 usually did this already.
 
 ```java
 public static final String DEFAULT_NAME = "fruitrespinmania-session-journey";
@@ -1397,7 +1422,7 @@ Gatling rejects two scenarios with the same name in one `setUp()`. Game-specific
 
 **5.2** Adapting silkroad's ratio-modulo routing: edit the secondary requests and their `oneInN` values. A VU runs a secondary request when `userIndex % oneInN == 0`, using the feeder's `userIndex`.
 
-**5.3** Adapting the bonanza pattern: edit the init chain (`betLevels → reelStrips → createSession`) and the `randomSwitch` weights. Drop entries that don't apply.
+**5.3** For a stateful REST pattern (no live source anymore — see the note above): build an init chain (e.g. `betLevels → reelStrips → createSession`) and a `randomSwitch` weighted by request frequency. Drop entries that don't apply.
 
 **gRPC-only games:** the scenario is inline in the Scala file (`scenario("<pkg>-grpc-player-journey")`). The request names `"Join"` and `"Spin"` are referenced again by the `details("Spin")` / `details("Join")` assertions. Rename them together or not at all.
 
@@ -1412,7 +1437,7 @@ Gatling rejects two scenarios with the same name in one `setUp()`. Game-specific
 | `SpikeSimulation.java`   | Has **two** hardcoded population names, `"<pkg>-spike-baseline"` and `"<pkg>-spike-burst"` (step 1.4 renames them from `silkroad-…`). They must stay distinct. |
 | `BasicSimulation.java`   | The `endpoints()` list matches `Endpoints.java` and `SlotRequests.java`.                  |
 
-For the bonanza pattern, you only need `SoakSimulation` and `BasicSimulation`. Its Soak class **extends `Simulation` directly** rather than `SoakSimulationBase`, because the base hard-codes open-model injection. Leave that alone.
+For a stateful REST pattern (no live example anymore, see the note under [Which template to clone](#which-template-to-clone)), you'd only need `SoakSimulation` and `BasicSimulation`, with Soak extending `Simulation` directly rather than `SoakSimulationBase`, because the base hard-codes open-model injection.
 
 **gRPC-only games:**
 
@@ -1447,18 +1472,18 @@ case "$GAME" in
 esac
 ```
 
-**8.2 Health probe URL.** Add a row that returns 2xx on a healthy backend:
+**8.2 Health probe URL.** Add a row that returns 2xx on a healthy backend. Leave `HEALTH_URL=""` when the backend has no usable HTTP endpoint at all — `ensure-sut.sh` and `health-poll.sh` then fall back to polling the container's Docker healthcheck status instead, and your compose file from Phase 10 must define a `healthcheck:` block for that to work:
 
 ```bash
 case "$GAME" in
-  bonanza)   HEALTH_URL="http://localhost:${PORT}/golden/api/configs/bet-levels" ;;
+  bonanza)   HEALTH_URL="" ;;                                                          # no HTTP endpoint; Docker healthcheck instead (Phase 10)
   # … existing games …
   fruit-respin-mania) HEALTH_URL="http://localhost:${PORT}/fruit/actuator/health" ;;   # add
   *)        HEALTH_URL="http://localhost:${PORT}/actuator/health" ;;
 esac
 ```
 
-The same URL drives `health.csv`, the PR-3 crash check and `ensure-sut.sh`'s "is it up?" test. Pick something cheap (under 50 ms typical). Spring Boot's `/actuator/health` is a safe default when exposed; the gRPC-only games use `/health`, or `/api/game/zeroday/actuator/health` for zeroday.
+The same URL (or the Docker healthcheck, when it's left empty) drives `health.csv`, the PR-3 crash check and `ensure-sut.sh`'s "is it up?" test. Pick something cheap (under 50 ms typical). Spring Boot's `/actuator/health` is a safe default when exposed; the gRPC-only games use `/health`, or `/api/game/zeroday/actuator/health` for zeroday; silkroad and bonanza have no HTTP endpoint at all and leave `HEALTH_URL` empty.
 
 **8.3 Optional:** add the new id to the `--game <…>` lists in the script's usage comment and error message.
 
@@ -1489,6 +1514,7 @@ The script copies the file into the backend's root folder (next to its `Dockerfi
 | `build: { context: ., dockerfile: Dockerfile }` | Builds from the folder the script copied it into. |
 | A fixed `container_name` | Must equal the `GAMES` row's container. `ensure-sut.sh`, `loadtest.sh` and `monitor-resources.sh` match it by exact name. |
 | Ports `"${HTTP_PORT:-3000}:<app port>"`, plus the gRPC port for gRPC games | `ensure-sut.sh` always sets `HTTP_PORT` to the wrapper's port. The `:-3000` default only matters when you run compose by hand. |
+| A `healthcheck:` block on the game service itself, when there's no HTTP endpoint to probe | Required whenever Phase 8.2's `HEALTH_URL` is left empty for this game — `ensure-sut.sh`/`health-poll.sh` then wait on `docker inspect`'s health status instead of polling a URL. Probe the port your simulation actually dials, e.g. `nc -z localhost <grpc-port>` (`games/bonanza/`) or a `/dev/tcp` check if the image has no `nc`/`curl` (`games/silkroad/`). |
 | Its own Mongo, Redis, … with healthchecks, and `depends_on: condition: service_healthy` | Self-contained; no shared infrastructure. |
 | Mock wallet settings | For example `WALLET_GATEWAY: mock` (naga777, mutantmerge) or `LUIGI_WALLET_ENABLED: "false"` (silkroad, zeroday), so no real wallet or auth service is needed. |
 | `mem_limit`, `logging: driver: json-file` | A realistic memory cap, and `docker logs` keeps working for post-run log checks. |
@@ -1508,6 +1534,11 @@ services:
       dockerfile: Dockerfile
     container_name: game-fruit-respin-mania
     mem_limit: 768m
+    # No HTTP endpoint to probe? Leave HEALTH_URL="" in Phase 8.2 and add a healthcheck here instead:
+    # healthcheck:
+    #   test: ["CMD", "nc", "-z", "localhost", "<grpc-port>"]
+    #   interval: 5s
+    #   retries: 60
     environment:
       MONGODB_URI: mongodb://mongo:27017/<db-name>
       REDIS_HOST: redis
@@ -1553,9 +1584,9 @@ Run these in order. If a step fails, go back to the phase that produced it.
 **12.1 Compile.** This catches package, import and FQCN errors:
 
 ```bash
-./gradlew :games:$NEW:compileGatlingJava                                   # silkroad clone, or bonanza clone without gRPC
-./gradlew :games:$NEW:compileGatlingJava :games:$NEW:compileGatlingGrpcScala  # bonanza clone with gRPC
-./gradlew :games:$NEW:compileGatlingScala                                  # gRPC-only clone
+./gradlew :games:$NEW:compileGatlingJava                                   # REST-only clone (silkroad)
+./gradlew :games:$NEW:compileGatlingJava :games:$NEW:compileGatlingGrpcScala  # REST + gRPC clone (silkroad as is)
+./gradlew :games:$NEW:compileGatlingScala                                  # gRPC-only clone (bonanza, naga777, mutantmerge, zeroday, apsara, candy, colosseum, nagas-treasure)
 ```
 
 Expect `BUILD SUCCESSFUL`. A gRPC-only module reports `compileGatlingJava NO-SOURCE`, which is fine.
@@ -1608,8 +1639,7 @@ On the short gRPC smoke, Gatling's own `requestRate` / `eventCount` assertions f
 ### Developer gotchas
 
 - **Gatling EL is `#{userId}`, not `${userId}`** (Gatling 3.7+ Java DSL). The wrong form ships a literal string and triggers lock collisions on the backend, which shows up as about 51 % HTTP 400.
-- **bonanza's spin returns HTTP 201**; silkroad's returns 200. `status().is(…)` is set per game.
-- **bonanza field names are inconsistent on purpose** (they match the backend). `/sessions` and `/spin` use `playerId`; `/jackpot/*` and `/history/*` use `userId`. `betAmount` is a JSON string for `/spin` and a number for `/jackpot/*`.
+- **Match `status().is(…)` to your backend's real status code.** Don't assume 200 for every REST endpoint — it's set per game (silkroad's spin returns 200).
 - **Scenario names must be unique within a `setUp()`.** Spike simulations have two populations, so pass distinct names (Phase 6).
 - **A new `-D` flag has no effect?** Add it to `FORWARDED_PROPS` in `games/<game>/build.gradle` (Phase 2.3). For the gRPC `JavaExec` tasks, that list is the only way in. `gameName` is injected by the alias tasks.
 - **The wrapper always forwards `-Dport`**, which overrides the port in `game.yml`. Keep the `PORT` case in `run-variant.sh` in sync with `game.yml`.
@@ -1628,7 +1658,7 @@ On the short gRPC smoke, Gatling's own `requestRate` / `eventCount` assertions f
 - [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md): how to run naga777 and read its results, including `generate-final-report.py`.
 - [`core/libs/README.md`](core/libs/README.md): where the bundled GaaS JAR comes from and why it is downgraded.
 - Gatling: [EL syntax](https://docs.gatling.io/reference/script/core/session/el/) · [Gradle plugin](https://docs.gatling.io/reference/integrations/build-tools/gradle-plugin/) · [gRPC DSL](https://docs.gatling.io/reference/script/protocols/grpc/). The last one documents the Enterprise-gated first-party DSL, which this repo does **not** use for its gRPC simulations.
-- [`phisgr/gatling-grpc`](https://github.com/phisgr/gatling-grpc): the community gRPC plugin (0.17.0, Gatling 3.9.5) behind all four `Grpc` simulations. It is archived upstream.
+- [`phisgr/gatling-grpc`](https://github.com/phisgr/gatling-grpc): the community gRPC plugin (0.17.0, Gatling 3.9.5) behind all nine `Grpc` simulations. It is archived upstream.
 
 ---
 
@@ -1669,23 +1699,30 @@ Hai thuật ngữ dùng xuyên suốt bên dưới:
 
 Bảng này là nguồn chuẩn cho các giá trị mà mọi lệnh bên dưới sử dụng. Các game server ("backend") nằm ở **các repository riêng**, đặt cạnh repo này. Repo này không build chúng.
 
-| Game                | `GAME`        | Thư mục source backend (ví dụ)                   | Container                  | Port HTTP | Port gRPC | Đường dẫn health probe              | Simulation                         | Tự khởi động |
-|---------------------|---------------|--------------------------------------------------|----------------------------|-----------|-----------|-------------------------------------|------------------------------------|--------------|
-| Silk Road Caravans  | `silkroad`    | `../be-silk-road-caravans`                       | `game-silk-road-caravans`  | `3000`    | —         | `/actuator/health`                  | `Soak`, `Stress`, `Spike`, `Basic` | Có           |
-| Golden Boat Bonanza | `bonanza`     | `../be-golden-boat-bonanza`                      | `game-golden-boat-bonanza` | `3005`    | `9091`    | `/golden/api/configs/bet-levels`    | `Soak`, `Basic`, `Grpc`            | Có           |
-| Naga's Fortune 777  | `naga777`     | `../Stable_NAGAS_777/stable-be-naga-fortune-777` | `stable-naga_fortune_777`  | `3000`    | `9096`    | `/health`                           | `Grpc`                             | Có           |
-| Mutant Merge        | `mutantmerge` | `../Stable_Mutant_Merge/be-mutant-merge`         | `stable-game-mutant-merge` | `3000`    | `9104`    | `/health`                           | `Grpc`                             | Có           |
-| Zero Day            | `zeroday`     | `../be-zero-day`                                 | `game-zero-day`            | `3000`    | `9103`    | `/api/game/zeroday/actuator/health` | `Grpc`                             | Có           |
+| Game                 | `GAME`           | Thư mục source backend (ví dụ)                     | Container                   | Port HTTP | Port gRPC | Đường dẫn health probe               | Simulation                                  | Tự khởi động |
+|----------------------|------------------|----------------------------------------------------|------------------------------|-----------|-----------|----------------------------------------|-----------------------------------------------|--------------|
+| Silk Road Caravans   | `silkroad`       | `../be-silk-road-caravans`                         | `game-silk-road-caravans`   | `3000`    | `9093`    | — (Docker healthcheck)                | `Soak`, `Stress`, `Spike`, `Basic`, `Grpc`  | Có           |
+| Golden Boat Bonanza  | `bonanza`        | `../be-golden-boat-bonanza`                        | `game-golden-boat-bonanza`  | —         | `9091`    | — (Docker healthcheck)                | `Grpc`                                      | Có           |
+| Naga's Fortune 777   | `naga777`        | `../Stable_NAGAS_777/stable-be-naga-fortune-777`   | `stable-naga_fortune_777`   | `3000`    | `9096`    | `/health`                              | `Grpc`                                      | Có           |
+| Mutant Merge         | `mutantmerge`    | `../Stable_Mutant_Merge/be-mutant-merge`           | `stable-game-mutant-merge`  | `3000`    | `9104`    | `/health`                              | `Grpc`                                      | Có           |
+| Zero Day             | `zeroday`        | `../be-zero-day`                                   | `game-zero-day`             | `3000`    | `9103`    | `/api/game/zeroday/actuator/health`   | `Grpc`                                      | Có           |
+| Apsara Paradise      | `apsara`         | `../be-apsara-paradise`                            | `game-apsara-paradise`      | `3011`    | `9095`    | `/api/game/apsara/api/ping`           | `Grpc`                                      | Có           |
+| Candy Frenzy         | `candy`          | `../be-candy-frenzy`                               | `game-candy-frenzy`         | `3012`    | `9098`    | `/health`                              | `Grpc`                                      | Có           |
+| Colosseum Showdown   | `colosseum`      | `../be-colosseum-showdown`                         | `game-colosseum-showdown`   | `3013`    | `9102`    | `/health`                              | `Grpc`                                      | Có           |
+| Naga's Treasure      | `nagas-treasure` | `../be-nagas-treasure`                             | `game-nagas-treasure`       | `3014`    | `9092`    | `/api/game/nagas/actuator/health`     | `Grpc`                                      | Có           |
 
 Ý nghĩa các cột:
 
 - **Thư mục source backend**: thư mục chứa `Dockerfile` của game. Các đường dẫn chỉ là ví dụ; hãy dùng đúng chỗ repo nằm trên máy bạn.
 - **Container**: tên Docker container mà harness theo dõi CPU / bộ nhớ. Các file compose dùng để tự khởi động đặt đúng các tên này. Nếu bạn khởi động server theo cách khác, hãy xem tên thật bằng `docker ps`.
-- **Port HTTP**: giá trị mặc định khi bạn không truyền `--port`. URL health probe là `http://localhost:<HTTP port><health probe path>`.
-- **Port gRPC**: nơi simulation `Grpc` kết nối tới (luôn trên `localhost` khi bạn dùng wrapper). Silk Road không có test gRPC.
+- **Port HTTP**: giá trị mặc định khi bạn không truyền `--port`. URL health probe là `http://localhost:<HTTP port><health probe path>`. Bonanza không có port HTTP nào cả — nó chỉ chạy gRPC.
+- **Đường dẫn health probe**: hiện "— (Docker healthcheck)" với Bonanza và Silk Road, vì hai game này không có HTTP health endpoint; harness sẽ đợi / poll trạng thái Docker healthcheck của container thay vào đó (xem [Tự động khởi động game server](#tự-động-khởi-động-game-server)).
+- **Port gRPC**: nơi simulation `Grpc` kết nối tới (luôn trên `localhost` khi bạn dùng wrapper).
 - **Tự khởi động**: "Có" nghĩa là có file `games/<game>/docker-compose.loadtest.yml`, nên harness có thể khởi động server giúp bạn. Xem [Tự động khởi động game server](#tự-động-khởi-động-game-server).
 
-`settings.gradle` còn khai báo sẵn bốn game khác nhưng đang tắt (bị comment).
+SUT local của Naga's Treasure chạy với Spring profile `trial` (wallet, state và history đều in-memory) — vì nếu tắt wallet Luigi mà không có profile này thì sẽ không còn bean wallet nào cả.
+
+`settings.gradle` còn khai báo sẵn hai game khác nhưng đang tắt (bị comment).
 
 ## Cài đặt
 
@@ -1728,7 +1765,7 @@ Menu hỏi vài câu, cho bạn xem đúng lệnh sắp chạy, chạy lệnh đ
 
 **Màn hình 1: chọn game.** Mỗi game hiện ● nếu container của nó đang chạy và ○ nếu không. Server chạy ngoài Docker sẽ hiện ○, nhưng test vẫn chạy được miễn là health probe của nó trả lời.
 
-**Màn hình 2: chọn loại test.** Chỉ các game có nhiều hơn một loại test mới hỏi câu này. Naga's Fortune 777, Mutant Merge và Zero Day chỉ có `gRPC`, nên menu in loại đó ra rồi đi tiếp.
+**Màn hình 2: chọn loại test.** Chỉ các game có nhiều hơn một loại test mới hỏi câu này. Golden Boat Bonanza, Naga's Fortune 777, Mutant Merge, Zero Day, Apsara Paradise, Candy Frenzy, Colosseum Showdown và Naga's Treasure chỉ có `gRPC`, nên menu in loại đó ra rồi đi tiếp.
 
 | Chữ hiện trên menu                                                      | Simulation |
 |-------------------------------------------------------------------------|------------|
@@ -1796,14 +1833,19 @@ $ ./loadtest.sh
   3) ○ Naga's Fortune 777
   4) ○ Mutant Merge
   5) ● Zero Day
-Game [1-5]: 1
+  6) ○ Apsara Paradise
+  7) ○ Candy Frenzy
+  8) ○ Colosseum Showdown
+  9) ○ Naga's Treasure
+Game [1-9]: 1
 
 == What kind of test? ==
   1) Soak    steady load for a while (finds slowdowns and memory leaks)
   2) Stress  keep adding players until the server struggles
   3) Spike   normal load with sudden rushes of players
   4) Basic   call one API many times
-Test type [1-4]: 1
+  5) gRPC    steady load over gRPC, the way the real game client connects
+Test type [1-5]: 1
 
 == How big should the test be? ==
   1) Smoke         10 players for 1 minute (just checks that it works)
@@ -1836,18 +1878,21 @@ cp games/$GAME/docker-compose.loadtest.yml "$BACKEND_DIR"/
 (cd "$BACKEND_DIR" && HTTP_PORT=$PORT docker compose -f docker-compose.loadtest.yml up -d --build)
 ```
 
-Lần build đầu có thể mất vài phút. File compose của Bonanza không có port HTTP (`HTTP_PORT` bị bỏ qua) — chỉ có gRPC `9091` — nên health probe ở bước dưới không bao giờ trả lời; hãy đợi Docker healthcheck của container báo `healthy` thay vào đó, và dùng `--simulation Grpc`.
+Lần build đầu có thể mất vài phút. File compose của Bonanza không có port HTTP (`HTTP_PORT` bị bỏ qua) — chỉ có gRPC `9091` — nên nó không có health probe HTTP nào cả; hãy đợi Docker healthcheck của container báo `healthy` thay vào đó, và dùng `--simulation Grpc`. Backend của Silk Road cũng không có actuator, nên healthcheck của compose probe thẳng port gRPC `9093` thay vì HTTP — cũng đợi Docker healthcheck của container đó theo cách tương tự.
 
-**2. Kiểm tra server có trả lời không.** Dùng health probe của game bạn. Mã `2xx` bất kỳ (thường là `200`) nghĩa là server đã lên. Nếu là mã khác: đợi một chút rồi thử lại, hoặc xem [Xử lý sự cố](#xử-lý-sự-cố).
+**2. Kiểm tra server có trả lời không.** Dùng health probe của game bạn. Mã `2xx` bất kỳ (thường là `200`) nghĩa là server đã lên. Bonanza và Silk Road không có HTTP health endpoint — hãy kiểm tra trạng thái Docker healthcheck của chúng thay vào đó (`healthy` nghĩa là đã lên). Nếu là mã khác: đợi một chút rồi thử lại, hoặc xem [Xử lý sự cố](#xử-lý-sự-cố).
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/actuator/health                  # silkroad
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3005/golden/api/configs/bet-levels     # bonanza
+docker inspect -f '{{.State.Health.Status}}' game-silk-road-caravans                              # silkroad, bonanza (không có HTTP health)
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/health                            # naga777, mutantmerge
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/game/zeroday/actuator/health  # zeroday
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3011/api/game/apsara/api/ping          # apsara
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3012/health                            # candy
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3013/health                            # colosseum
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3014/api/game/nagas/actuator/health    # nagas-treasure
 ```
 
-**3. Chạy smoke test 1 phút.** Dùng `--simulation Grpc` cho naga777, mutantmerge và zeroday.
+**3. Chạy smoke test 1 phút.** Dùng `--simulation Grpc` cho mọi game trừ Silk Road, vì nó còn có thêm `Soak`, `Stress`, `Spike` và `Basic`.
 
 ```bash
 ./scripts/run-variant.sh \
@@ -1867,7 +1912,7 @@ Banner **PASS** màu xanh lá nghĩa là test đã vượt qua mọi ngưỡng.
 
 ## Tự động khởi động game server
 
-`run-variant.sh` (và do đó cả menu) gọi `scripts/ensure-sut.sh` trước mỗi lần test. Khi game server không chạy, script này có thể khởi động nó từ source code của game bằng `games/<game>/docker-compose.loadtest.yml`. File compose đó chạy game cùng Mongo và Redis riêng (và RabbitMQ với Zero Day), tắt wallet thật và không cần dịch vụ bên ngoài nào. File compose của Bonanza chạy Spring profile `trial` (wallet và lưu trữ spin/jackpot đều in-memory), nên container Mongo của nó gần như không nhận tải nào.
+`run-variant.sh` (và do đó cả menu) gọi `scripts/ensure-sut.sh` trước mỗi lần test. Khi game server không chạy, script này có thể khởi động nó từ source code của game bằng `games/<game>/docker-compose.loadtest.yml`. File compose đó chạy game cùng Mongo và Redis riêng (và RabbitMQ với Zero Day), tắt wallet thật và không cần dịch vụ bên ngoài nào. File compose của Bonanza chạy Spring profile `trial` (wallet và lưu trữ spin/jackpot đều in-memory), nên container Mongo của nó gần như không nhận tải nào. File compose của Naga's Treasure cũng chạy profile `trial` này (wallet, state và history đều in-memory) vì cùng lý do: nếu không có nó, tắt wallet Luigi sẽ không còn bean wallet nào cả.
 
 **Khi nào script can thiệp.** Chỉ khi **cả hai** điều sau đều đúng:
 
@@ -1879,7 +1924,7 @@ Server chạy ngoài Docker vẫn được chấp nhận miễn là health probe
 **Bạn sẽ thấy gì.**
 
 ```text
-[ensure-sut] The silkroad game server isn't running (no running container 'game-silk-road-caravans', and http://localhost:3000/actuator/health doesn't answer).
+[ensure-sut] The silkroad game server isn't running (no running container 'game-silk-road-caravans', and its Docker healthcheck isn't healthy).
 How do you want to start it?
   1) The game's source code is on this machine (you paste the folder path)
   2) Download the source code from git, branch main (you paste the git URL)
@@ -1887,7 +1932,7 @@ How do you want to start it?
 Choice [1/2/q]: 1
 Folder with the game's source code: ~/Projects/be-silk-road-caravans
 [ensure-sut] Starting the game server (the first time can take a few minutes): HTTP_PORT=3000 docker compose -f docker-compose.loadtest.yml up -d --build
-[ensure-sut] Waiting for the server to answer http://localhost:3000/actuator/health (up to 300s)
+[ensure-sut] Waiting for the container's Docker healthcheck to report healthy (up to 300s)
 [ensure-sut] Game server is up.
 ```
 
@@ -1916,19 +1961,24 @@ Server vẫn tiếp tục chạy sau khi test xong. Các lần test sau dùng l�
 | Tình huống                                     | Chuyện gì xảy ra                                                                                                                          |
 |------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | **Bonanza**                                    | File compose của nó chỉ có gRPC (không có port HTTP; `HTTP_PORT` bị bỏ qua), nên chỉ simulation `Grpc` chạy được. Vì không có URL health probe để hỏi, script đợi Docker healthcheck của container báo `healthy` thay vào đó.  |
+| **Silk Road**                                  | Backend của nó cũng không có actuator, nên healthcheck của compose probe port gRPC `9093` qua TCP thay vì HTTP. Cùng cách xử lý như Bonanza: script đợi Docker healthcheck của container báo `healthy`.  |
 | **Không có terminal** (CI, pipe)               | Script không hỏi bạn được, nên in ra lệnh thủ công rồi dừng: `cp <repo>/games/<game>/docker-compose.loadtest.yml <source-dir>/ && cd <source-dir> && HTTP_PORT=<port> docker compose -f docker-compose.loadtest.yml up -d --build` |
 | **Docker chưa chạy**                           | `Docker isn't running. Open Docker Desktop, wait until it's ready, then run again.`                                                        |
 | **Port đã bị chiếm**                           | `docker compose` thất bại. Nhiều khả năng stack của một game khác đang giữ port 3000. Hãy dừng stack đó (xem bên dưới), hoặc chạy với `--port 3010` (menu: **Custom**, câu hỏi cuối). |
 
 **Dừng server sau khi test.** Mỗi file compose đặt cho stack của nó một tên project cố định, nên các lệnh sau chạy được từ bất kỳ thư mục nào:
 
-| Game          | Tên compose project    |
-|---------------|------------------------|
-| `silkroad`    | `silkroad-loadtest`    |
-| `bonanza`     | `bonanza-loadtest`     |
-| `naga777`     | `naga777-loadtest`     |
-| `mutantmerge` | `mutantmerge-loadtest` |
-| `zeroday`     | `zeroday-loadtest`     |
+| Game               | Tên compose project         |
+|--------------------|-----------------------------|
+| `silkroad`         | `silkroad-loadtest`         |
+| `bonanza`          | `bonanza-loadtest`          |
+| `naga777`          | `naga777-loadtest`          |
+| `mutantmerge`      | `mutantmerge-loadtest`      |
+| `zeroday`          | `zeroday-loadtest`          |
+| `apsara`           | `apsara-loadtest`           |
+| `candy`            | `candy-loadtest`            |
+| `colosseum`        | `colosseum-loadtest`        |
+| `nagas-treasure`   | `nagas-treasure-loadtest`   |
 
 ```bash
 docker compose ls                               # các stack đang chạy
@@ -1958,7 +2008,7 @@ Ctrl+C dừng các monitor chạy nền, in đường dẫn của kết quả d�
 
 ```bash
 ./scripts/run-variant.sh \
-  --game <silkroad|bonanza|naga777|mutantmerge|zeroday> \
+  --game <silkroad|bonanza|naga777|mutantmerge|zeroday|apsara|candy|colosseum|nagas-treasure> \
   --variant <baseline|target|stress|critical> \
   --simulation <Soak|Stress|Spike|Basic|Grpc> \
   --container <name> \
@@ -1968,17 +2018,17 @@ Ctrl+C dừng các monitor chạy nền, in đường dẫn của kết quả d�
 
 | Flag                 | Mặc định                                    | Bắt buộc | Ghi chú                                                                                                                                                                                |
 |----------------------|---------------------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--game`             | không có                                    | Có       | Một trong năm id `GAME`. Cũng có thể lấy từ biến môi trường `GAME`; nếu đặt cả hai thì flag được ưu tiên. Không có mặc định: bỏ trống sẽ dừng với lỗi. Tên không có thư mục `games/<name>/` sẽ dừng với `ERROR: unknown game '<name>'`. |
+| `--game`             | không có                                    | Có       | Một trong chín id `GAME`. Cũng có thể lấy từ biến môi trường `GAME`; nếu đặt cả hai thì flag được ưu tiên. Không có mặc định: bỏ trống sẽ dừng với lỗi. Tên không có thư mục `games/<name>/` sẽ dừng với `ERROR: unknown game '<name>'`. |
 | `--variant`          | không có                                    | Có       | Quyết định ngưỡng CPU / bộ nhớ: `baseline` 50 / 60 %, `target` 70 / 80 % (cổng release), `stress` 85 / 90 %, `critical` 95 / 95 %. Xem [Cấu hình](#cấu-hình). Chỉ verifier kiểm tra tên này, và kiểm tra **sau** khi test xong, nên hãy gõ đúng chính tả. |
 | `--simulation`       | không có                                    | Có       | Viết hoa hay viết thường đều được. Phải là simulation mà game hỗ trợ ([Các game hiện có](#các-game-hiện-có)). Nếu không, Gradle không tìm thấy task và lần chạy thất bại.             |
 | `--container`        | không có                                    | Có       | Dùng để phát hiện server đang chạy và để đọc `docker stats`. Nếu không có container nào như vậy, CPU / bộ nhớ được lấy từ process đang lắng nghe trên `--port`. Nếu cũng không có process nào, giá trị là `N/A`. |
 | `--users`            | `1000`                                      |          | Số người chơi (VU).                                                                                                                                                                    |
 | `--duration-minutes` | `60`                                        |          | Thời gian giữ tải đầy đủ, tính sau ramp.                                                                                                                                               |
-| `--ramp-minutes`     | `5`                                         |          | Warm-up: thời gian để người chơi vào dần. Wrapper luôn gửi giá trị này, nên các simulation `Grpc` và `Soak` của Bonanza không bao giờ dùng mặc định 2 của riêng chúng. Menu gửi 2 cho `Grpc` và 5 cho mọi loại test khác. Muốn `Soak` của Bonanza dùng ramp 2 của riêng nó, hãy truyền `--ramp-minutes 2`. |
-| `--port`             | `3005` cho `bonanza`, `3000` cho các game khác |       | Port HTTP của game. Dùng cho URL health probe, làm phương án dự phòng để đo CPU / bộ nhớ, làm `HTTP_PORT` khi tự khởi động, và được truyền cho các simulation REST dưới dạng `-Dport`. Các simulation `Grpc` luôn dùng port gRPC riêng của chúng. |
-| `--parallel`         | tắt                                         |          | Chỉ cho Soak: mọi người chơi vào cùng lúc thay vì vào dần. Chỉ có tác dụng với **Silk Road**. `Soak` của Bonanza bỏ qua flag này.                                                     |
+| `--ramp-minutes`     | `5`                                         |          | Warm-up: thời gian để người chơi vào dần. Wrapper luôn gửi giá trị này, nên các simulation `Grpc` không bao giờ dùng mặc định 2 của riêng chúng. Menu gửi 2 cho `Grpc` và 5 cho mọi loại test khác. |
+| `--port`             | `3005` cho `bonanza`, `3000` cho hầu hết các game khác |       | Port HTTP của game; bốn game gRPC mới nhất mỗi game có port riêng (xem [Các game hiện có](#các-game-hiện-có)). Dùng cho URL health probe (trừ silkroad và bonanza, hai game này không có HTTP health endpoint nữa và thay vào đó poll Docker healthcheck của container — xem [Xử lý sự cố](#xử-lý-sự-cố)), làm phương án dự phòng để đo CPU / bộ nhớ, làm `HTTP_PORT` khi tự khởi động, và được truyền cho các simulation REST dưới dạng `-Dport`. Các simulation `Grpc` luôn dùng port gRPC riêng của chúng. |
+| `--parallel`         | tắt                                         |          | Chỉ cho Soak: mọi người chơi vào cùng lúc thay vì vào dần. Chỉ có tác dụng với **Silk Road**; bonanza không còn simulation `Soak` nữa (giờ chỉ có gRPC).                              |
 | `--requests`         | mặc định của simulation, `10000`            |          | Chỉ cho Basic: tổng số request của tất cả VU cộng lại.                                                                                                                                 |
-| `--scenario`         | endpoint đầu tiên (`spin` / `BetLevels`)    |          | Chỉ cho Basic: chọn endpoint hoặc chế độ nào. Xem [Test từng endpoint riêng lẻ](#test-từng-endpoint-riêng-lẻ).                                                                         |
+| `--scenario`         | endpoint đầu tiên (`spin`)                  |          | Chỉ cho Basic: chọn endpoint hoặc chế độ nào. Xem [Test từng endpoint riêng lẻ](#test-từng-endpoint-riêng-lẻ).                                                                         |
 
 Flag lạ sẽ dừng lần chạy với `Unknown arg: <flag>`. Thiếu flag bắt buộc sẽ dừng với `--variant required`, `--simulation required`, `--container required`, hoặc `ERROR: --game <…> required (or set GAME env var)`.
 
@@ -1995,13 +2045,13 @@ Verdict dùng cùng sáu dòng đó cho mọi simulation. Cột cuối của b�
 
 | Simulation | Game                                    | Làm gì                                                                                                                                                                                                                                                  | Khi nào dùng                                           | Assertion của Gatling (chỉ ảnh hưởng exit code)                                                                                                             |
 |------------|-----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Soak`     | silkroad, bonanza                       | Silk Road: người chơi vào dần trong `--ramp-minutes` (hoặc vào cùng lúc với `--parallel`). Sau đó mỗi người chơi trong `--duration-minutes`. Bonanza: số người chơi tăng dần lên `--users` trong thời gian ramp và giữ nguyên trong suốt duration. Mỗi người chơi Bonanza tạo một session, rồi chơi lặp lại với nhịp 5 giây. | Cổng release. Tìm chỗ chậm dần và rò rỉ bộ nhớ.       | Mean response ≤ ngưỡng PR-4, tỉ lệ lỗi ≤ ngưỡng PR-5. Bonanza còn cần: ≥ 50 req/s tổng, > 100 000 request thành công, `Spin` p95 ≤ 800 ms, lỗi của `Spin` và `CreateSession` ≤ 0.5 %. |
+| `Soak`     | silkroad                                | Người chơi vào dần trong `--ramp-minutes` (hoặc vào cùng lúc với `--parallel`). Sau đó mỗi người chơi trong `--duration-minutes`.                                                                                                                        | Cổng release. Tìm chỗ chậm dần và rò rỉ bộ nhớ.       | Mean response ≤ ngưỡng PR-4, tỉ lệ lỗi ≤ ngưỡng PR-5. |
 | `Stress`   | silkroad                                | Người chơi mới đến với tốc độ tăng dần từ 500 lên 2500 người mỗi phút trong suốt `--duration-minutes`. Sau đó mỗi người chơi trong `--duration-minutes`, nên lần chạy kéo dài thêm tối đa 5 phút. `--users` và `--ramp-minutes` không làm thay đổi nó. | Tìm điểm gãy của server.                               | Không có. Chỉ để đo.                                                                                                                                        |
 | `Spike`    | silkroad                                | Trong 25 phút, mỗi phút có 200 người chơi mới đến, cộng thêm 5 đợt 1500 người chơi vào cùng lúc (khoảng 4.5 phút một đợt). Mỗi người chơi trong 25 phút, và lần chạy dừng ở giới hạn 30 phút. `--users`, `--duration-minutes` và `--ramp-minutes` không làm thay đổi nó. | Kiểm tra khả năng hồi phục sau các đợt người chơi ùa vào đột ngột. | Không có. Chỉ để đo.                                                                                                                                        |
-| `Basic`    | silkroad, bonanza                       | `--users` VU bắt đầu cùng lúc và gửi tổng cộng `--requests` request tới một endpoint (hoặc một chế độ).                                                                                                                                                 | Smoke test một endpoint duy nhất.                      | Không có request nào thất bại.                                                                                                                              |
-| `Grpc`     | bonanza, naga777, mutantmerge, zeroday  | Số người chơi tăng dần lên `--users` trong thời gian ramp và giữ nguyên trong suốt duration. Mỗi người chơi vào game qua gRPC (`ConnectAndCall`), rồi spin (`Call`) một lần mỗi chu kỳ pace. Đây là đường kết nối mà game client thật sử dụng.         | Cổng release cho các game gRPC.                        | Mean response ≤ ngưỡng PR-4, tỉ lệ lỗi ≤ ngưỡng PR-5, > 50 req/s tổng, > 100 000 request thành công, `Spin` p95 ≤ 800 ms, lỗi của `Spin` và `Join` ≤ 0.5 %. |
+| `Basic`    | silkroad                                | `--users` VU bắt đầu cùng lúc và gửi tổng cộng `--requests` request tới một endpoint (hoặc một chế độ).                                                                                                                                                 | Smoke test một endpoint duy nhất.                      | Không có request nào thất bại.                                                                                                                              |
+| `Grpc`     | silkroad, bonanza, naga777, mutantmerge, zeroday, apsara, candy, colosseum, nagas-treasure | Số người chơi tăng dần lên `--users` trong thời gian ramp và giữ nguyên trong suốt duration. Mỗi người chơi vào game qua gRPC (`ConnectAndCall`), rồi spin (`Call`) một lần mỗi chu kỳ pace. Đây là đường kết nối mà game client thật sử dụng.         | Cổng release cho các game gRPC.                        | Mean response ≤ ngưỡng PR-4, tỉ lệ lỗi ≤ ngưỡng PR-5, > 50 req/s tổng, > 100 000 request thành công, `Spin` p95 ≤ 800 ms, lỗi của `Spin` và `Join` ≤ 0.5 %. |
 
-> **Các lần chạy nhỏ của `Grpc` và `Soak` của Bonanza luôn kết thúc với `BUILD FAILED` và exit code khác 0**, kể cả khi server hoàn hảo. Chúng phải đạt 50 req/s và hơn 100 000 request thành công, điều mà chỉ lần chạy quy mô đầy đủ mới làm được. Một smoke test 10 người chơi chỉ tạo khoảng 2 request mỗi giây. Khi đó hãy đọc `verdict.json` / `summary.html`: các ngưỡng sàn này không phải là dòng của verdict, nên verdict vẫn có thể là PASS. Để hạ các ngưỡng này, dùng [Chạy nâng cao](#chạy-nâng-cao-không-qua-wrapper) (`-DrequestRate=… -DeventCount=…`).
+> **Các lần chạy nhỏ của `Grpc` luôn kết thúc với `BUILD FAILED` và exit code khác 0**, kể cả khi server hoàn hảo. Chúng phải đạt 50 req/s và hơn 100 000 request thành công, điều mà chỉ lần chạy quy mô đầy đủ mới làm được. Một smoke test 10 người chơi chỉ tạo khoảng 2 request mỗi giây. Khi đó hãy đọc `verdict.json` / `summary.html`: các ngưỡng sàn này không phải là dòng của verdict, nên verdict vẫn có thể là PASS. Để hạ các ngưỡng này, dùng [Chạy nâng cao](#chạy-nâng-cao-không-qua-wrapper) (`-DrequestRate=… -DeventCount=…`).
 >
 > **Stress và Spike chạy lâu hơn quy mô bạn chọn**: Stress mất tối đa `--duration-minutes` + 5 phút, còn Spike khoảng 30 phút. Các monitor CPU / health dừng sau ramp cộng duration cộng 2 phút, nên có thể bỏ lỡ đoạn cuối. Với Spike, truyền `--duration-minutes 30 --ramp-minutes 0`. Với Stress, truyền `--ramp-minutes 4`. Spike bỏ qua cả hai giá trị này và Stress bỏ qua ramp, nên chúng chỉ giúp các monitor bao trọn cả lần chạy, còn dư một phút cho Gradle khởi động. Trong menu, hãy nhập các giá trị này ở **Custom**. Để thay đổi hình dạng tải của Stress hay Spike, dùng [Chạy nâng cao](#chạy-nâng-cao-không-qua-wrapper).
 >
@@ -2011,12 +2061,11 @@ Verdict dùng cùng sáu dòng đó cho mọi simulation. Cột cuối của b�
 
 | Game          | `users` | `durationMinutes` | `rampMinutes` | `paceSec` | `requestRate` (sàn req/s) | `eventCount` (sàn số request thành công) | `grpcHost` | `grpcPort` | Thiết lập riêng của game (chỉ qua Gradle) |
 |---------------|---------|-------------------|---------------|-----------|---------------------------|------------------------------------------|------------|------------|-------------------------------------------|
+| `silkroad`    | 1000    | 60                | 2             | 5         | 50                        | 100000                                   | localhost  | 9093       | `bet=1.00`                                |
 | `bonanza`     | 1000    | 60                | 2             | 5         | 50                        | 100000                                   | localhost  | 9091       | không có                                  |
 | `naga777`     | 1000    | 60                | 2             | 5         | 50                        | 100000                                   | localhost  | 9096       | `coinValue=5`, `coinPerLine=3`            |
 | `mutantmerge` | 1000    | 60                | 2             | 5         | 50                        | 100000                                   | localhost  | 9104       | `betLevelId=3`, `superBet=false`          |
 | `zeroday`     | 1000    | 60                | 2             | 5         | 50                        | 100000                                   | localhost  | 9103       | `bet=1.00`                                |
-
-`Soak` REST của Bonanza dùng cùng các mặc định `rampMinutes=2`, `paceSec=5`, `requestRate=50` và `eventCount=100000`.
 
 ### Ví dụ chuẩn
 
@@ -2029,11 +2078,9 @@ Verdict dùng cùng sáu dòng đó cho mọi simulation. Cột cuối của b�
 ./scripts/run-variant.sh --game silkroad --variant target --simulation Soak \
   --users 1000 --duration-minutes 60 --ramp-minutes 5 --container game-silk-road-caravans
 
-# Golden Boat Bonanza — smoke / cổng production REST / cổng production gRPC (port 3005 được chọn tự động)
-./scripts/run-variant.sh --game bonanza --variant target --simulation Soak \
+# Golden Boat Bonanza — smoke / cổng production (chỉ có gRPC, không có port HTTP)
+./scripts/run-variant.sh --game bonanza --variant target --simulation Grpc \
   --users 10 --duration-minutes 1 --ramp-minutes 0 --container game-golden-boat-bonanza
-./scripts/run-variant.sh --game bonanza --variant target --simulation Soak \
-  --users 1000 --duration-minutes 60 --ramp-minutes 5 --container game-golden-boat-bonanza
 ./scripts/run-variant.sh --game bonanza --variant target --simulation Grpc \
   --users 1000 --duration-minutes 60 --ramp-minutes 2 --container game-golden-boat-bonanza
 
@@ -2060,21 +2107,18 @@ Với **Quick check** của menu, dùng `--variant baseline --users 200 --durati
 
 ### Test từng endpoint riêng lẻ
 
-Dùng `--simulation Basic --scenario <name>` để gọi một endpoint duy nhất thay vì cả hành trình của người chơi. Chỉ Silk Road và Bonanza có endpoint REST để test.
+Dùng `--simulation Basic --scenario <name>` để gọi một endpoint duy nhất thay vì cả hành trình của người chơi. Giờ chỉ Silk Road có endpoint REST để test — các simulation REST của Bonanza (kể cả `Basic`) đã bị gỡ bỏ; Bonanza giờ chỉ có gRPC.
 
 | Game       | Endpoint (`--scenario`)                                                                | Chế độ                  |
 |------------|----------------------------------------------------------------------------------------|-------------------------|
 | `silkroad` | `spin`, `last-spin`, `history-summary`                                                 | `all`, `chain`, `burst` |
-| `bonanza`  | `BetLevels`, `ReelStrips`, `CreateSession`, `Spin`, `JackpotPools`, `HistorySessions`  | `all`, `chain`, `burst` |
 
 - **Một endpoint**: `--users` VU bắt đầu cùng lúc, mỗi VU gửi `--requests ÷ --users` request (ít nhất 1).
 - **`all`**: như trên, nhưng cho mọi endpoint cùng lúc.
 - **`chain`**: mỗi VU gọi lần lượt mọi endpoint theo thứ tự, lặp lại cho tới khi dùng hết số request.
 - **`burst`**: mỗi endpoint có `--users` VU, tất cả chạy cùng lúc, mỗi VU gửi một request.
 
-Tên phân biệt chữ hoa chữ thường. Tên sai sẽ thất bại với `Unknown scenario: '<name>'. Valid: …`. Menu liệt kê các endpoint và chế độ của Silk Road, và các endpoint của Bonanza. Các chế độ của Bonanza vẫn dùng được qua wrapper.
-
-Các endpoint có trạng thái của Bonanza (`BonusStart`, `BonusReveal`, `HistoryRounds`, `RoundDetail`) không test riêng được, vì chúng cần trạng thái từ một session hoặc một lần spin trước đó. Chúng được chạy bên trong `Soak`.
+Tên phân biệt chữ hoa chữ thường. Tên sai sẽ thất bại với `Unknown scenario: '<name>'. Valid: …`. Menu liệt kê các endpoint và chế độ của Silk Road.
 
 **Mẫu lệnh.** Mẫu này giả định bạn đã export các biến như ở phần Bắt đầu nhanh. Nếu chưa, hãy truyền giá trị cụ thể.
 
@@ -2094,18 +2138,12 @@ Các endpoint có trạng thái của Bonanza (`BonusStart`, `BonusReveal`, `His
 | `silkroad` | `spin`            | 500       | 5 000        | Hành động chính của game.                       |
 | `silkroad` | `last-spin`       | 500       | 5 000        | Chỉ đọc.                                        |
 | `silkroad` | `history-summary` | 500       | 5 000        | Chỉ đọc.                                        |
-| `bonanza`  | `BetLevels`       | 1 000     | 10 000       | Cấu hình tĩnh, nhẹ.                             |
-| `bonanza`  | `ReelStrips`      | 1 000     | 10 000       | Cấu hình tĩnh, nhẹ.                             |
-| `bonanza`  | `CreateSession`   | 500       | 2 000        | Nặng hơn: mỗi request tạo một session.          |
-| `bonanza`  | `Spin`            | 500       | 5 000        | Trả về HTTP 201, không phải 200.                |
-| `bonanza`  | `JackpotPools`    | 1 000     | 10 000       | Chỉ đọc.                                        |
-| `bonanza`  | `HistorySessions` | 500       | 5 000        | Chỉ đọc.                                        |
 
 ### Kiểm tra riêng cho từng game
 
-**Silk Road.** Game chỉ có REST. File compose cho load test tắt wallet thật và cheat, đồng thời thay ZMQ publisher bằng bản mock, nên không cần dịch vụ bên ngoài nào.
+**Silk Road.** REST vẫn là đường chính (`Soak`, `Stress`, `Spike`, `Basic`), và giờ có thêm một simulation `Grpc` (port gRPC `9093`, pluginName `game-silk-road-caravans`). File compose cho load test tắt wallet thật và cheat, đồng thời thay ZMQ publisher bằng bản mock, nên không cần dịch vụ bên ngoài nào. Game cũng không còn HTTP health endpoint nữa — Docker healthcheck probe port gRPC thay vào đó, và wrapper chuyển sang poll cái đó (xem [Xử lý sự cố](#xử-lý-sự-cố)).
 
-**Golden Boat Bonanza.** File compose tự khởi động chỉ có gRPC (không có port HTTP), nên chỉ test `Grpc` chạy được với nó; test `Grpc` cần truy cập được port gRPC `9091` trên `localhost`. Các simulation REST `Soak` / `Basic` cần một deployment khác trả lời trên port `3005` dưới `/golden`, nơi `Spin` trả về **201**.
+**Golden Boat Bonanza.** Giờ chỉ có gRPC: các simulation REST (`Soak`, `Basic`) và các file mã nguồn REST đã bị gỡ bỏ. File compose tự khởi động không còn port HTTP nào, nên chỉ test `Grpc` chạy được với nó; test này cần truy cập được port gRPC `9091` trên `localhost`.
 
 **Naga's Fortune 777.** Chỉ có gRPC: qua HTTP, backend không cung cấp gì ngoài health check. Thời gian spin đo được là thời gian gRPC xác nhận đã nhận lệnh (acknowledgement), vì kết quả spin đầy đủ được đẩy qua ZMQ. Server tính mức cược bằng `coinValue × coinPerLine × 5`, mặc định là 75. Chi tiết hơn ở [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md).
 
@@ -2244,7 +2282,7 @@ python3 scripts/generate-final-report.py \
 - Với mỗi variant (`baseline`, `target`, `stress`, `critical`), script lấy thư mục của lần chạy **mới nhất**, bất kể lần chạy đó là simulation nào. Variant chưa từng chạy sẽ hiện `N/A`.
 - Script điền bảng PR-1 đến PR-7 từ lần chạy `target`: ít nhất 1000 người chơi, ít nhất 60 phút, không có khoảng health gián đoạn từ 5 giây trở lên, mean ≤ 500 ms, lỗi ≤ 1 %, và kết quả CPU / bộ nhớ lấy từ `verdict.json`. Kết luận cuối cùng tính mọi dòng trừ PR-2 (thời lượng). Các ngưỡng này được cố định trong script; ngưỡng YAML riêng của từng game không được áp dụng.
 - Script thêm một bảng CPU / bộ nhớ cho cả bốn variant, cùng các percentile độ trễ và phần tóm tắt tài nguyên cho `target`. CPU % trong phần tóm tắt tài nguyên đó là giá trị thô của `docker stats`, chưa chia cho số core.
-- Các dòng độ trễ và lỗi cần file `gatling-report/js/stats.json`, và chỉ các test gRPC (Gatling 3.9.5) mới ghi ra file này. Với các lần chạy REST (Silk Road, `Soak` / `Basic` của Bonanza), các dòng đó là `N/A`, nên kết luận cuối cùng là FAIL. Hãy dùng `summary.html` cho các game đó.
+- Các dòng độ trễ và lỗi cần file `gatling-report/js/stats.json`, và chỉ các test gRPC (Gatling 3.9.5) mới ghi ra file này. Với các lần chạy REST của Silk Road (`Soak`, `Stress`, `Spike`, `Basic`), các dòng đó là `N/A`, nên kết luận cuối cùng là FAIL. Hãy dùng `summary.html` cho các lần chạy đó.
 - `--host` / `--port` chỉ dùng để điền dòng "SUT" của báo cáo.
 
 ## Xử lý sự cố
@@ -2262,9 +2300,9 @@ python3 scripts/generate-final-report.py \
 | `[ensure-sut] ERROR: couldn't start the game server …` kèm `env file … .env.staging not found`   | Các file compose của Silk Road, Naga's Fortune 777 và Zero Day đọc `.env.staging` từ thư mục backend. Hãy đảm bảo file đó có ở đó.                                                                                                                              |
 | `[ensure-sut] ERROR: the server didn't come up within 300s. …`                                   | Đọc 50 dòng log được in phía trên thông báo lỗi. Thường là Mongo / Redis vẫn đang khởi động, hoặc app bị lỗi lúc boot. Sửa xong thì chạy lại. Lần chạy sau sẽ dùng lại container đang chạy.                                                                   |
 | `Connection refused`, hoặc health check bằng curl thất bại                                       | Server chưa lên. Chạy `docker ps --filter name=<container>` và `docker logs <container> 2>&1 \| tail -50`. Nếu vừa mới khởi động, hãy đợi rồi thử lại.                                                                                                          |
-| `health.csv` chỉ toàn `000` hoặc các dòng 5 giây                                                 | URL probe không trả lời `2xx`. Wrapper dùng `http://localhost:<port>` cộng với: silkroad `/actuator/health`, bonanza `/golden/api/configs/bet-levels`, naga777 và mutantmerge `/health`, zeroday `/api/game/zeroday/actuator/health`. Kiểm tra server đang ở đúng port và đường dẫn đó, hoặc truyền `--port`. |
+| `health.csv` chỉ toàn `000` hoặc các dòng 5 giây                                                 | URL probe không trả lời `2xx`. Wrapper dùng `http://localhost:<port>` cộng với: naga777 và mutantmerge `/health`, zeroday `/api/game/zeroday/actuator/health`. Silkroad và bonanza giờ không còn HTTP health endpoint nữa — wrapper để URL trống, và `health-poll.sh` chuyển sang poll trạng thái Docker healthcheck của container, ghi `200`/`0.000` khi healthy hoặc `000`/`0.000` khi không. Kiểm tra server đang ở đúng port và đường dẫn đó (hoặc có Docker healthcheck hoạt động, với silkroad / bonanza), hoặc truyền `--port`. |
 | `resource.csv` toàn `N/A`, và các dòng CPU / Mem FAIL                                            | Không có container nào mang tên đã truyền cho `--container`, và không có gì lắng nghe trên `--port`. Kiểm tra bằng `docker ps`. Không có mẫu thì các dòng CPU và bộ nhớ sẽ FAIL.                                                                               |
-| `BUILD FAILED` và exit code khác 0, nhưng `verdict.json` báo PASS                                | Assertion của Gatling và verdict là hai thứ riêng biệt. Với các lần chạy `Grpc` hoặc `Soak` của Bonanza quy mô nhỏ, không thể đạt ngưỡng sàn 50 req/s và 100 000 request. Xem [Các loại simulation](#các-loại-simulation).                                      |
+| `BUILD FAILED` và exit code khác 0, nhưng `verdict.json` báo PASS                                | Assertion của Gatling và verdict là hai thứ riêng biệt. Với các lần chạy `Grpc` quy mô nhỏ, không thể đạt ngưỡng sàn 50 req/s và 100 000 request. Xem [Các loại simulation](#các-loại-simulation).                                      |
 | Gradle không tìm thấy task `:games:<game>:<simulation>`                                          | Game đó không có simulation đó. Kiểm tra [Các game hiện có](#các-game-hiện-có).                                                                                                                                                                                |
 | `Unknown variant: …`, sau đó `verdict.json` rỗng và không có `summary.html`                      | `--variant` phải là `baseline`, `target`, `stress` hoặc `critical`. Verifier chỉ kiểm tra nó sau khi test xong, nên bản thân test vẫn đã chạy.                                                                                                                  |
 | `Unknown arg: …`, hoặc `… required`                                                              | Gõ sai flag, hoặc thiếu `--game` / `--variant` / `--simulation` / `--container`. Xem [Tham số của wrapper](#tham-số-của-wrapper).                                                                                                                              |
@@ -2346,7 +2384,7 @@ Simulation `Basic` chỉ assert không có KO nào (thêm `-DmaxResponseTimeMs` 
 
 ### Mặc định runtime và override theo game
 
-`LoadTestConfigLoader` resolve host, port, context path và hình dạng tải cho **các simulation REST viết bằng Java** (silkroad, bonanza `soak` / `basic`). Các lớp chạy từ ưu tiên thấp nhất đến cao nhất:
+`LoadTestConfigLoader` resolve host, port, context path và hình dạng tải cho **các simulation REST viết bằng Java** (chỉ còn silkroad — lớp REST của bonanza đã bị gỡ bỏ, giờ bonanza chỉ còn gRPC). Các lớp chạy từ ưu tiên thấp nhất đến cao nhất:
 
 1. Giá trị dự phòng hardcode trong `LoadTestDefaults.fallback()`, giống hệt giá trị của file kế tiếp.
 2. `classpath:load-test-defaults.yml`, đóng gói từ `core/src/main/resources/load-test-defaults.yml`.
@@ -2367,12 +2405,10 @@ Simulation `Basic` chỉ assert không có KO nào (thêm `-DmaxResponseTimeMs` 
 
 Các file `game.yml` có sẵn:
 
-- **bonanza** đặt `http.port: 3005` và `http.contextPath: /golden`.
-- **silkroad, naga777, mutantmerge và zeroday** chỉ có comment.
+- **Cả chín game** giờ chỉ có comment. Override `http.port: 3005` / `http.contextPath: /golden` của bonanza đã bị gỡ cùng lớp REST của nó (bonanza giờ chỉ còn gRPC).
 
 **Ngoại lệ:**
 
-- **`SoakSimulation` của bonanza** đọc thẳng `rampMinutes` từ `-D`, mặc định là `2`.
 - **Các simulation gRPC viết bằng Scala hoàn toàn không dùng `LoadTestConfig`.** Class đó được compile với Java API của Gatling 3.15 và sẽ kéo các type của 3.15 vào classpath 3.9.5 của chúng. Chúng đọc thẳng mọi giá trị `-D` với mặc định riêng, nên `game.yml` của chúng chỉ mang tính tài liệu.
 - **Wrapper luôn truyền `-Dusers`, `-DdurationMinutes`, `-DrampMinutes` và `-Dport`.** Khi chạy qua wrapper, port trong `game.yml` bị thay bằng port theo game của wrapper (xem [Giai đoạn 8](#giai-đoạn-8-nối-vào-script-wrapper)), và các giá trị tải trong YAML bị thay bằng mặc định riêng của wrapper. `host` và `contextPath` vẫn lấy từ YAML.
 
@@ -2386,23 +2422,28 @@ Các flag này chỉ tới được simulation khi bạn gọi Gradle trực ti�
 
 | Game          | `FORWARDED_PROPS`                                                                                                   |
 |---------------|---------------------------------------------------------------------------------------------------------------------|
-| `silkroad`    | `users`, `requests`, `durationMinutes`, `rampMinutes`, `thinkTimeMin`, `thinkTimeMax`, `host`, `port`, `contextPath`, `parallel`, `scenario`, `maxResponseTimeMs`, `usersStart`, `usersEnd`, `baseline`, `spike`, `spikeDurationSec`, `cycles`, `cycleIntervalMinutes` |
-| `bonanza` (REST và `grpc` dùng chung một danh sách) | `users`, `requests`, `durationMinutes`, `rampMinutes`, `thinkTimeMin`, `thinkTimeMax`, `host`, `port`, `contextPath`, `scenario`, `maxResponseTimeMs`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort` |
+| `silkroad` REST (`soak`/`stress`/`spike`/`basic`) | `users`, `requests`, `durationMinutes`, `rampMinutes`, `thinkTimeMin`, `thinkTimeMax`, `host`, `port`, `contextPath`, `parallel`, `scenario`, `maxResponseTimeMs`, `usersStart`, `usersEnd`, `baseline`, `spike`, `spikeDurationSec`, `cycles`, `cycleIntervalMinutes` |
+| `silkroad` `grpc` (danh sách riêng) | `users`, `durationMinutes`, `rampMinutes`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `bet` |
+| `bonanza` (chỉ gRPC, một danh sách) | `users`, `durationMinutes`, `rampMinutes`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort` |
 | `naga777`     | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `coinValue`, `coinPerLine` |
 | `mutantmerge` | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `betLevelId`, `superBet` |
 | `zeroday`     | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `bet` |
+| `apsara`      | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `betSize`, `coinValue` |
+| `candy`       | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `coinValue`, `betLevel` |
+| `colosseum`   | `users`, `durationMinutes`, `rampMinutes`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `betCoinValue`, `betLevel` |
+| `nagas-treasure` | `users`, `durationMinutes`, `rampMinutes`, `host`, `port`, `paceSec`, `requestRate`, `eventCount`, `grpcHost`, `grpcPort`, `bet` |
 
-Các game chỉ có gRPC có forward `host` và `port`, nhưng simulation Scala của chúng không đọc hai giá trị này. Endpoint gRPC chỉ lấy từ `grpcHost` / `grpcPort`.
+silkroad giờ có hai danh sách riêng (task REST và task `grpc`) thay vì dùng chung một danh sách — cách bố trí này đã chuyển từ bonanza sang silkroad. Đa số game chỉ có gRPC cũng forward `host` và `port`, dù simulation Scala của chúng không đọc hai giá trị này (riêng danh sách của colosseum không có cả hai). Endpoint gRPC luôn lấy từ `grpcHost` / `grpcPort`.
 
 **Flag tải dùng chung** (simulation REST, qua `LoadTestConfig` trừ khi có ghi chú khác):
 
 | Flag                | Mặc định          | Ý nghĩa                                                                                  |
 |---------------------|-------------------|------------------------------------------------------------------------------------------|
-| `users`             | `1000`            | silkroad Soak: số VU được inject (open model). bonanza Soak và mọi simulation gRPC: số VU đồng thời (closed model). Basic: số VU khởi động cùng lúc. |
+| `users`             | `1000`            | silkroad Soak: số VU được inject (open model). Mọi simulation gRPC (kể cả của bonanza và silkroad): số VU đồng thời (closed model). Basic: số VU khởi động cùng lúc. |
 | `durationMinutes`   | `60`              | Số phút ở trạng thái ổn định. Trong Stress, là độ dài của ramp arrival rate.             |
-| `rampMinutes`       | `5`; `2` cho bonanza Soak và mọi simulation gRPC | Số phút ramp-up trước trạng thái ổn định.                   |
+| `rampMinutes`       | `5`; `2` cho mọi simulation gRPC (kể cả của bonanza và silkroad) | Số phút ramp-up trước trạng thái ổn định.                   |
 | `requests`          | `10000`           | Chỉ cho Basic: tổng ngân sách request. Mỗi VU lặp `max(1, requests / users)` lần.        |
-| `host`, `port`, `contextPath` | `localhost`, `3000`, `""` (bonanza: `3005`, `/golden`) | Base URL của REST. Override các giá trị này để nhắm vào staging. |
+| `host`, `port`, `contextPath` | `localhost`, `3000`, `""` | Base URL của REST, giờ chỉ còn silkroad — override `3005`/`/golden` của bonanza đã mất cùng lớp REST của nó. Override các giá trị này để nhắm vào staging. |
 | `thinkTimeMin`, `thinkTimeMax` | `1`, `3`  | Số giây dừng ngẫu nhiên sau mỗi request chính trong journey của silkroad.                |
 | `scenario`          | endpoint đầu tiên | Chỉ cho Basic: tên một endpoint, hoặc `all` / `chain` / `burst`. Giá trị không hợp lệ sẽ fail với `Unknown scenario: '<x>'. Valid: …`. |
 | `parallel`          | `false`           | Chỉ cho silkroad Soak: `true` inject toàn bộ user cùng lúc (không ramp).                 |
@@ -2419,7 +2460,7 @@ Các game chỉ có gRPC có forward `host` và `port`, nhưng simulation Scala 
 | `cycleIntervalMinutes` | `5`      | Spike: độ dài một chu kỳ. Tổng thời gian chạy = `cycles × cycleIntervalMinutes`. Spike bỏ qua `durationMinutes` và `rampMinutes`. |
 | `spikeDurationSec`     | `30`     | Spike: thời gian chờ trước mỗi đợt burst là `cycleIntervalMinutes × 60 − spikeDurationSec` giây. |
 
-**bonanza Soak và mọi simulation gRPC:**
+**Mọi simulation gRPC** (bonanza, `grpc` của silkroad, naga777, mutantmerge, zeroday, apsara, candy, colosseum, nagas-treasure):
 
 | Flag          | Mặc định                 | Ý nghĩa                                                                                  |
 |---------------|--------------------------|------------------------------------------------------------------------------------------|
@@ -2427,7 +2468,7 @@ Các game chỉ có gRPC có forward `host` và `port`, nhưng simulation Scala 
 | `requestRate` | `50`                     | Gatling assertion: số request mỗi giây toàn cục phải vượt ngưỡng sàn này. Dùng `0` cho smoke test ngắn. |
 | `eventCount`  | `100000`                 | Gatling assertion: số request thành công phải vượt con số này. Dùng `0` cho smoke test ngắn. |
 | `grpcHost`    | `localhost`              | Chỉ cho simulation gRPC.                                                                  |
-| `grpcPort`    | `9091` bonanza, `9096` naga777, `9104` mutantmerge, `9103` zeroday | Chỉ cho simulation gRPC.                        |
+| `grpcPort`    | `9091` bonanza, `9093` silkroad, `9096` naga777, `9104` mutantmerge, `9103` zeroday, `9095` apsara, `9098` candy, `9102` colosseum, `9092` nagas-treasure | Chỉ cho simulation gRPC. |
 
 **Flag mức cược riêng của từng game:**
 
@@ -2438,6 +2479,15 @@ Các game chỉ có gRPC có forward `host` và `port`, nhưng simulation Scala 
 | `mutantmerge` | `betLevelId`   | `3`      | Chỉ số bắt đầu từ 1 trong thang cược, gửi dưới dạng string. Simulation ghi chú mặc định này là $1.00. |
 | `mutantmerge` | `superBet`     | `false`  | `true` sẽ thêm `superBet: true` vào mỗi lượt spin.                                       |
 | `zeroday`     | `bet`          | `1.00`   | Số thập phân trên thang cược `0.20`–`100.00` (25 bậc). Giá trị nằm ngoài thang sẽ fail ngay khi simulation được nạp, trước khi có request nào. |
+| `apsara`      | `betSize`      | `1`      | Phải khớp chính xác một phần tử trong danh sách `betSizes` của backend (1–10).             |
+| `apsara`      | `coinValue`    | `0.10`   | Phải khớp chính xác một phần tử trong danh sách `coinValues` của backend (0.01–1.20).      |
+| `candy`       | `coinValue`    | `0.10`   | Kết hợp với `betLevel` (mức 1–10): `Total Bet = coinValue × betLevel × 20`.                |
+| `candy`       | `betLevel`     | `1`      | Mức cược 1–10; tổ hợp lệch lưới với `coinValue` sẽ bị từ chối.                             |
+| `colosseum`   | `betCoinValue` | (mặc định backend) | Một trong `0.03`/`0.10`/`0.30`/`0.90`; kết hợp với `betLevel`: tổng cược = `betCoinValue × betLevel × 20`. |
+| `colosseum`   | `betLevel`     | (mặc định backend) | Mức cược 1–10.                                                                     |
+| `nagas-treasure` | `bet`       | `1.00`   | Phải khớp chính xác (sai số ±0.001) một trong các bậc cược backend cho phép.               |
+
+Task `grpc` của silkroad đọc cùng flag `bet` như các simulation REST của nó, trên cùng thang 24 bậc (`0.10`–`100.00`), mặc định `1.00`.
 
 ## Chạy nâng cao không qua wrapper
 
@@ -2445,33 +2495,39 @@ Gọi trực tiếp `./gradlew :games:<game>:<alias>` khi bạn cần những th
 
 - **Hình dạng tải Stress hoặc Spike**: `-DusersStart`, `-DusersEnd`, `-Dbaseline`, `-Dspike`, `-Dcycles`, …
 - **Override endpoint gRPC**: `-DgrpcHost`, `-DgrpcPort`.
-- **Tinh chỉnh gRPC và bonanza Soak**: `-DpaceSec`, `-DrequestRate`, `-DeventCount`, và các flag mức cược ở trên.
+- **Tinh chỉnh gRPC (mọi simulation gRPC, kể cả của bonanza)**: `-DpaceSec`, `-DrequestRate`, `-DeventCount`, và các flag mức cược ở trên.
 - **Chạy một simulation bất kỳ theo tên class đầy đủ (FQCN).**
 - **Lặp nhanh khi đang phát triển một game**: không khởi động monitor và không có verdict.
 
-Bạn chỉ nhận được report HTML của Gatling tại `games/<game>/build/reports/gatling/<simulationclass>-<timestamp>/index.html`. **Không có `summary.html`, không có `verdict.json` và không có file CSV nào.** Nếu một Gatling assertion fail, Gradle task sẽ fail. Các lần chạy ngắn của bonanza Soak và simulation gRPC luôn fail ngưỡng sàn `requestRate` / `eventCount`, trừ khi bạn truyền `-DrequestRate=0 -DeventCount=0`.
+Bạn chỉ nhận được report HTML của Gatling tại `games/<game>/build/reports/gatling/<simulationclass>-<timestamp>/index.html`. **Không có `summary.html`, không có `verdict.json` và không có file CSV nào.** Nếu một Gatling assertion fail, Gradle task sẽ fail. Các lần chạy ngắn của simulation gRPC (kể cả bonanza) luôn fail ngưỡng sàn `requestRate` / `eventCount`, trừ khi bạn truyền `-DrequestRate=0 -DeventCount=0`.
 
 ### Lệnh Gradle cho từng game
 
 Chạy các lệnh này từ thư mục gốc repo. Thay các placeholder `<…>` bằng giá trị staging của bạn.
 
 ```bash
-# silkroad (REST, Gatling 3.15)
+# silkroad REST (Gatling 3.15)
 ./gradlew :games:silkroad:basic  -Dscenario=spin -Dusers=1 -Drequests=1
 ./gradlew :games:silkroad:soak   -Dusers=50 -DdurationMinutes=1 -DrampMinutes=1
 ./gradlew :games:silkroad:stress -DusersStart=10 -DusersEnd=200 -DdurationMinutes=5
 ./gradlew :games:silkroad:spike  -Dbaseline=5 -Dspike=50 -Dcycles=3 -DcycleIntervalMinutes=1
 
-# bonanza REST (port 3005 và contextPath /golden lấy từ game.yml)
-./gradlew :games:bonanza:basic -Dscenario=BetLevels -Dusers=1 -Drequests=1
-./gradlew :games:bonanza:soak  -Dusers=10 -DdurationMinutes=5 -DrampMinutes=1 \
-  -DrequestRate=0 -DeventCount=0
-# bonanza REST nhắm vào host khác
-./gradlew :games:bonanza:soak -Dhost=<rest-host> -Dport=<rest-port> -DcontextPath=/golden
+# silkroad gRPC (Gatling 3.9.5; nửa riêng, thêm bên cạnh phần REST ở trên)
+./gradlew :games:silkroad:grpc -Dusers=5 -DdurationMinutes=1 -DrampMinutes=1 \
+  -DgrpcHost=localhost -DgrpcPort=9093 -Dbet=1.00
 
-# bonanza gRPC (Gatling 3.9.5; kênh riêng, không có contextPath)
+# bonanza (chỉ gRPC; lớp REST đã bị gỡ bỏ)
+./gradlew :games:bonanza:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 \
+  -DrequestRate=0 -DeventCount=0
 ./gradlew :games:bonanza:grpc -Dusers=10 -DdurationMinutes=5 -DrampMinutes=1 \
   -DgrpcHost=localhost -DgrpcPort=9091
+
+# apsara gRPC
+./gradlew :games:apsara:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 \
+  -DrequestRate=0 -DeventCount=0
+./gradlew :games:apsara:grpc -Dusers=1000 -DdurationMinutes=60 -DbetSize=1 -DcoinValue=0.10
+# candy, colosseum và nagas-treasure gRPC theo cùng mẫu, chỉ khác flag mức cược riêng
+# (xem Flag mức cược riêng của từng game ở trên)
 
 # naga777 gRPC
 ./gradlew :games:naga777:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 \
@@ -2497,18 +2553,16 @@ Chạy các lệnh này từ thư mục gốc repo. Thay các placeholder `<…>
 
 ### Chạy simulation bất kỳ theo tên class
 
-Chỉ những module áp dụng Gatling Gradle plugin (silkroad và bonanza) mới có task `gatlingRun` của plugin:
+Chỉ module áp dụng Gatling Gradle plugin (silkroad — bonanza đã bỏ plugin này cùng lúc gỡ lớp REST) mới có task `gatlingRun` của plugin:
 
 ```bash
 ./gradlew :games:silkroad:gatlingRun \
   --simulation com.rgp.loadtest.silkroad.simulations.SoakSimulation
-./gradlew :games:bonanza:gatlingRun \
-  --simulation com.rgp.loadtest.bonanza.simulations.BasicSimulation
 ```
 
 - `gatlingRun` là task riêng của plugin. Nó không thêm `gameName` và không đọc `FORWARDED_PROPS`, nhưng plugin vẫn chép các flag `-D` của bạn sang fork (xem [System property của Gradle](#system-property-của-gradle)). Assertion SLA của nó giống hệt của alias, vì lớp file theo game vốn không bao giờ resolve được bên trong fork của simulation (xem [Ngưỡng SLA và thứ tự nạp](#ngưỡng-sla-và-thứ-tự-nạp)).
-- Trên bonanza, `gatlingRun` chỉ thấy source set REST (`src/gatling/java`). Simulation gRPC nằm trong source set riêng `gatlingGrpc`, và chỉ task `grpc` chạy được nó.
-- naga777, mutantmerge và zeroday không có `gatlingRun`. Mỗi entry trong map `SIMULATIONS` của chúng trở thành một task `JavaExec`, nên thêm một simulation Scala mới ở đó thì cần thêm một entry mới vào map. Task `grpc` của bonanza được gắn cứng vào `BonanzaGrpcSimulation`.
+- Trên silkroad, `gatlingRun` chỉ thấy source set REST (`src/gatling/java`). Simulation gRPC nằm trong source set riêng `gatlingGrpc`, và chỉ task `grpc` chạy được nó.
+- naga777, mutantmerge, zeroday, apsara, candy, colosseum và nagas-treasure không có `gatlingRun`. Mỗi entry trong map `SIMULATIONS` của chúng trở thành một task `JavaExec`, nên thêm một simulation Scala mới ở đó thì cần thêm một entry mới vào map. Task `grpc` của bonanza và của silkroad đều được viết tay, gắn cứng vào simulation Scala riêng của chúng thay vì đi qua map `SIMULATIONS`.
 
 ### Chạy lại verifier trên kết quả có sẵn
 
@@ -2553,11 +2607,11 @@ Các phiên bản dùng chung được ghim trong `build.gradle` gốc (`ext { �
 |-------------------------------|-------------|-----------------------------------------------------------------------------------|
 | Java toolchain                | **17**      | Mọi subproject (`javaTargetVersion`).                                              |
 | Gradle wrapper                | 9.2.1       | `gradle/wrapper/gradle-wrapper.properties`. Không cần cài riêng.                  |
-| Gatling (simulation REST)     | **3.15.0**  | `gatlingVersion`, được `:core` export dưới dạng dependency `api`. silkroad, bonanza `soak` / `basic`. |
-| Gatling Gradle plugin         | 3.15.0.2    | `gatlingGradleVersion`, chỉ silkroad và bonanza áp dụng.                          |
-| Gatling (simulation gRPC)     | **3.9.5**   | `gatlingOssVersion` trong bonanza, naga777, mutantmerge và zeroday. Xem [Runtime cho gRPC](#runtime-cho-grpc). |
+| Gatling (simulation REST)     | **3.15.0**  | `gatlingVersion`, được `:core` export dưới dạng dependency `api`. Chỉ silkroad — lớp REST của bonanza đã bị gỡ bỏ. |
+| Gatling Gradle plugin         | 3.15.0.2    | `gatlingGradleVersion`, giờ chỉ silkroad áp dụng.                          |
+| Gatling (simulation gRPC)     | **3.9.5**   | `gatlingOssVersion` trong bonanza, silkroad, naga777, mutantmerge, zeroday, apsara, candy, colosseum và nagas-treasure. Xem [Runtime cho gRPC](#runtime-cho-grpc). |
 | gRPC DSL                      | `com.github.phisgr:gatling-grpc` 0.17.0 | `gatlingGrpcVersion`. Plugin cộng đồng, không giới hạn số VU. |
-| Scala library                 | **2.13.12** | Chỉ bốn simulation gRPC. Xem [Simulation gRPC viết bằng Scala](#simulation-grpc-viết-bằng-scala). |
+| Scala library                 | **2.13.12** | Simulation gRPC của cả chín game. Xem [Simulation gRPC viết bằng Scala](#simulation-grpc-viết-bằng-scala). |
 | gRPC Java / Protobuf          | 1.75.0 / 4.32.1 | `grpcVersion` / `protobufVersion`. Stub được sinh trong `:core` từ `plugin_service.proto`. |
 | Protobuf Gradle plugin        | 0.9.5       | `protobufPluginVersion` (`com.google.protobuf`, trong `:core`).                   |
 | SnakeYAML                     | 2.2         | Các loader YAML cho SLA và runtime trong `:core`.                                 |
@@ -2573,9 +2627,9 @@ Lý do là một giới hạn cứng. gRPC DSL chính chủ của Gatling 3.15 (
 
 Plugin cộng đồng dùng giấy phép Apache 2.0 và không có giới hạn. Bản phát hành cuối của nó (0.17.0) nhắm tới Gatling 3.9.5, nhưng `io.gatling.gradle` 3.9.5.x tương ứng lại hỏng trên Gradle 9 (`unknown property 'reportsDir'`). Vì vậy các simulation gRPC bỏ hẳn Gatling Gradle plugin. Mỗi simulation tự dựng classpath Gatling 3.9.5 riêng trong một configuration dành riêng và khởi chạy `io.gatling.app.Gatling` qua một task `JavaExec` thuần. Task ghi report vào `build/reports/gatling`, cùng chỗ plugin vẫn dùng, nên wrapper nhặt được report mà không cần thay đổi gì.
 
-- **naga777, mutantmerge và zeroday** chỉ có gRPC. Cả module chạy trên 3.9.5: configuration `gatlingRt`, source set `gatling`, source nằm ở `src/gatling/scala`.
-- **bonanza** có cả hai runtime, nên được tách đôi. `src/gatling/java` (REST) vẫn ở 3.15 dưới Gatling Gradle plugin. `src/gatlingGrpc/scala` compile và chạy với 3.9.5 (configuration `gatlingGrpcRt`, source set `gatlingGrpc`). Hai classpath không bao giờ trộn lẫn.
-- **silkroad** chỉ có REST và giữ nguyên. HTTP DSL của Gatling hoàn toàn OSS và không giới hạn, nên không có lý do gì để chuyển nó.
+- **naga777, mutantmerge, zeroday, apsara, candy, colosseum và nagas-treasure** chỉ có gRPC. Cả module chạy trên 3.9.5: configuration `gatlingRt`, source set `gatling`, source nằm ở `src/gatling/scala`.
+- **bonanza** cũng chỉ còn gRPC, nhưng vẫn giữ tên configuration `gatlingGrpcRt` / source set `gatlingGrpc` (`src/gatlingGrpc/scala`) từ thời còn có lớp REST đi kèm. Nó không còn áp dụng Gatling Gradle plugin nữa.
+- **silkroad** giờ có cả hai runtime, nên được tách đôi — cách bố trí mà bonanza từng có. `src/gatling/java` (REST) vẫn ở 3.15 dưới Gatling Gradle plugin. `src/gatlingGrpc/scala` compile và chạy với 3.9.5 (configuration `gatlingGrpcRt`, source set `gatlingGrpc`). Hai classpath không bao giờ trộn lẫn.
 - Mọi runtime gRPC đều kéo `project(':core')` vào để dùng proto stub, `Codec` MessagePack và `SlaConstants`. Nó dùng `exclude group: 'io.gatling'` và `exclude group: 'io.gatling.highcharts'` để Gatling 3.15 mà `:core` export không bao giờ lọt vào classpath 3.9.5.
 
 Mọi thứ phía sau vẫn hoạt động như cũ: wrapper, threshold verifier và `summary.html`. Gatling 3.9 in bản tóm tắt trên console dưới dạng `> request count  640 (OK=640  KO=0 )` thay vì bảng phân cách bằng dấu `|` như 3.15, nên threshold verifier parse được cả hai dạng.
@@ -2584,14 +2638,19 @@ Mọi thứ phía sau vẫn hoạt động như cũ: wrapper, threshold verifier
 
 ### Simulation gRPC viết bằng Scala
 
-Harness này viết bằng Java, trừ **bốn file Scala**, mỗi game một simulation gRPC:
+Harness này viết bằng Java, trừ **chín file Scala**, mỗi game một simulation gRPC:
 
 | File                                                                                         | `pluginName`            | `grpcPort` mặc định | Flag thêm                  | Kiểm tra Spin |
 |----------------------------------------------------------------------------------------------|-------------------------|---------------------|----------------------------|---------------|
-| `games/bonanza/src/gatlingGrpc/scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala` | `golden-boat-bonanza` | `9091`              | không có                   | Chỉ status gRPC |
+| `games/bonanza/src/gatlingGrpc/scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala` | `game-golden-boat-bonanza` | `9091`           | không có                   | Chỉ status gRPC |
+| `games/silkroad/src/gatlingGrpc/scala/com/rgp/loadtest/silkroad/grpc/SilkroadGrpcSimulation.scala` | `game-silk-road-caravans` | `9093`       | `bet`                      | Chỉ status gRPC (reply rỗng và kết quả đi qua ZMQ) |
 | `games/naga777/src/gatling/scala/com/rgp/loadtest/naga777/grpc/Naga777GrpcSimulation.scala`   | `game-naga-fortune-777` | `9096`            | `coinValue`, `coinPerLine` | Chỉ status gRPC (kết quả được đẩy qua ZMQ) |
 | `games/mutantmerge/src/gatling/scala/com/rgp/loadtest/mutantmerge/grpc/MutantMergeGrpcSimulation.scala` | `yama_01024` | `9104`           | `betLevelId`, `superBet`   | Decode reply và fail khi `c` khác 0 |
 | `games/zeroday/src/gatling/scala/com/rgp/loadtest/zeroday/grpc/ZeroDayGrpcSimulation.scala`   | `yama_01023`            | `9103`              | `bet`                      | Chỉ status gRPC (reply rỗng và kết quả đi qua ZMQ) |
+| `games/apsara/src/gatling/scala/com/rgp/loadtest/apsara/grpc/ApsaraGrpcSimulation.scala`      | `game-apsara-paradise`  | `9095`              | `betSize`, `coinValue`     | Chỉ status gRPC (kết quả cũng được đẩy qua ZMQ) |
+| `games/candy/src/gatling/scala/com/rgp/loadtest/candy/grpc/CandyGrpcSimulation.scala`         | `yama_01018`            | `9098`              | `coinValue`, `betLevel`    | Chỉ status gRPC (reply rỗng và kết quả đi qua ZMQ) |
+| `games/colosseum/src/gatling/scala/com/rgp/loadtest/colosseum/grpc/ColosseumGrpcSimulation.scala` | `yama_01022`        | `9102`              | `betCoinValue`, `betLevel` | Chỉ status gRPC (reply rỗng và kết quả đi qua ZMQ) |
+| `games/nagas-treasure/src/gatling/scala/com/rgp/loadtest/nagastreasure/grpc/NagasTreasureGrpcSimulation.scala` | `game-nagas-treasure` | `9092` | `bet`            | Chỉ status gRPC (reply rỗng và kết quả đi qua ZMQ) |
 
 **Vì sao là Scala?** `com.github.phisgr:gatling-grpc` chỉ cung cấp Scala DSL (`com.github.phisgr.gatling.grpc.Predef._`), nên các simulation này viết bằng Scala 2.13. Payload của chúng vẫn lấy từ `:core`:
 
@@ -2602,10 +2661,10 @@ Harness này viết bằng Java, trừ **bốn file Scala**, mỗi game một si
 **Khung chung.** Mọi simulation dùng cùng một journey và bộ assertion:
 
 - **Closed model:** `rampConcurrentUsers(0).to(users)` trong `rampMinutes`, sau đó `constantConcurrentUsers(users)` trong `durationMinutes`.
-- **Mỗi VU:** một `Join` (`ConnectAndCall`), sau đó một vòng lặp `Spin` (`Call`) với pace là `paceSec`. Ở naga777, mutantmerge và zeroday, `Join` thất bại sẽ dừng VU (`exitHereIfFailed`); bonanza thì vẫn đi tiếp vào vòng lặp.
+- **Mỗi VU:** một `Join` (`ConnectAndCall`), sau đó một vòng lặp `Spin` (`Call`) với pace là `paceSec`. Ở silkroad, naga777, mutantmerge, zeroday, apsara, candy, colosseum và nagas-treasure, `Join` thất bại sẽ dừng VU (`exitHereIfFailed`); bonanza thì vẫn đi tiếp vào vòng lặp.
 - **Assertion:** mean toàn cục ≤ PR-4, tỉ lệ fail ≤ PR-5, request/s > `requestRate`, số request thành công > `eventCount`, p95 của `Spin` ≤ 800 ms, và tỉ lệ fail của `Spin` và `Join` ≤ 0.5.
 
-**Cách nối dây cho module chỉ có gRPC** (lấy từ `games/zeroday/build.gradle`; naga777 và mutantmerge giống hệt, chỉ khác tên và flag):
+**Cách nối dây cho module chỉ có gRPC** (lấy từ `games/zeroday/build.gradle`; naga777, mutantmerge, apsara, candy, colosseum và nagas-treasure giống hệt, chỉ khác tên và flag):
 
 ```groovy
 plugins {
@@ -2647,12 +2706,12 @@ sourceSets {
 // systemProperty 'gameName', project.name cùng mọi tên trong FORWARDED_PROPS đã được đặt.
 ```
 
-**bonanza khác** ở các điểm sau:
+**bonanza và silkroad khác** so với mẫu chỉ-có-gRPC ở trên, theo các điểm sau:
 
-- Nó giữ `id 'io.gatling.gradle'` cho các simulation REST.
-- Nó đặt tên configuration là `gatlingGrpcRt` và source set là `gatlingGrpc` (`scala.srcDirs = ['src/gatlingGrpc/scala']`).
-- Nó đặt `resources.srcDirs = ['src/gatlingGrpc/resources', 'src/gatling/resources']` trên source set đó, để `logback-test.xml` của nó đứng trước và `game.yml` / `sla-thresholds.yml` dùng chung cũng có mặt trên classpath gRPC.
-- Nó đăng ký một task `JavaExec` tên `grpc` viết tay, phụ thuộc vào `gatlingGrpcClasses`.
+- Cả hai đặt tên configuration là `gatlingGrpcRt` và source set là `gatlingGrpc` (`scala.srcDirs = ['src/gatlingGrpc/scala']`) thay vì `gatlingRt` / `gatling` — một cách đặt tên còn sót lại từ thời bonanza có cả hai runtime (silkroad sao chép lại cách bố trí này khi có thêm nửa gRPC riêng).
+- Cả hai đặt `resources.srcDirs = ['src/gatlingGrpc/resources', 'src/gatling/resources']` trên source set đó, để `logback-test.xml` riêng của module (bonanza có file này; silkroad thì không) đứng trước, và `game.yml` / `sla-thresholds.yml` dùng chung cũng có mặt trên classpath gRPC.
+- Cả hai đăng ký một task `JavaExec` tên `grpc` viết tay, phụ thuộc vào `gatlingGrpcClasses`, thay vì đi qua map `SIMULATIONS`.
+- Chỉ **silkroad** vẫn giữ `id 'io.gatling.gradle'`, vì nó còn lớp REST đang hoạt động (`src/gatling/java`) trên Gatling 3.15. bonanza đã bỏ hẳn plugin này khi lớp REST của nó bị gỡ bỏ.
 
 **Cách chạy.** Dùng wrapper để có `summary.html` và verdict. Dùng Gradle trực tiếp để override endpoint gRPC hoặc các flag tinh chỉnh.
 
@@ -2675,7 +2734,7 @@ Các file được track, nhóm theo chức năng. Output sinh ra (`build/`, `ta
 ├── README.md                         chính file này
 ├── loadtest.sh                       menu tương tác → scripts/run-variant.sh
 ├── build.gradle                      Java 17 toolchain dùng chung, các property phiên bản, task verifyVariant
-├── settings.gradle                   include :core và năm game (4 game khác đang bị comment)
+├── settings.gradle                   include :core và chín game (2 game khác đang bị comment)
 ├── gradlew, gradlew.bat, gradle/wrapper/   Gradle 9.2.1 wrapper
 ├── config/
 │   └── sla-thresholds.yml            ngưỡng pass/fail cho toàn repo
@@ -2696,26 +2755,31 @@ Các file được track, nhóm theo chức năng. Output sinh ra (`build/`, `ta
 │       ├── proto/plugin_service.proto    WSProxy PluginService → Java gRPC stub
 │       └── resources/                load-test-defaults.yml, sla-thresholds.yml (bản dự phòng đóng gói sẵn)
 ├── games/
-│   ├── silkroad/                     chỉ REST, Java, stateless (open model)
-│   │   ├── build.gradle
-│   │   ├── docker-compose.loadtest.yml
-│   │   └── src/gatling/
-│   │       ├── java/com/rgp/loadtest/silkroad/   simulations/ scenarios/ requests/ utils/
-│   │       └── resources/            game.yml, sla-thresholds.yml, gatling.conf, logback-test.xml,
-│   │                                 games/silkroad/bodies/*.json
-│   ├── bonanza/                      REST (Java, Gatling 3.15) + gRPC (Scala, Gatling 3.9.5), stateful
+│   ├── silkroad/                     REST (Java, Gatling 3.15) + gRPC (Scala, Gatling 3.9.5), stateless
 │   │   ├── build.gradle
 │   │   ├── docker-compose.loadtest.yml
 │   │   └── src/
 │   │       ├── gatling/
-│   │       │   ├── java/com/rgp/loadtest/bonanza/   simulations/ scenarios/ requests/ utils/
-│   │       │   └── resources/        game.yml, sla-thresholds.yml, games/bonanza/bodies/*.json
+│   │       │   ├── java/com/rgp/loadtest/silkroad/   simulations/ scenarios/ requests/ utils/
+│   │       │   └── resources/        game.yml, sla-thresholds.yml, gatling.conf, logback-test.xml,
+│   │       │                         games/silkroad/bodies/*.json
+│   │       └── gatlingGrpc/
+│   │           └── scala/com/rgp/loadtest/silkroad/grpc/SilkroadGrpcSimulation.scala
+│   ├── bonanza/                      chỉ gRPC (Scala, Gatling 3.9.5) — lớp REST đã bị gỡ
+│   │   ├── build.gradle
+│   │   ├── docker-compose.loadtest.yml
+│   │   └── src/
+│   │       ├── gatling/resources/    game.yml, sla-thresholds.yml (dùng chung, cũng nằm trên classpath gRPC)
 │   │       └── gatlingGrpc/
 │   │           ├── scala/com/rgp/loadtest/bonanza/grpc/BonanzaGrpcSimulation.scala
 │   │           └── resources/logback-test.xml
 │   ├── naga777/                      chỉ gRPC, Scala ─┐
-│   ├── mutantmerge/                  chỉ gRPC, Scala  ├─ cùng bố cục:
-│   └── zeroday/                      chỉ gRPC, Scala ─┘
+│   ├── mutantmerge/                  chỉ gRPC, Scala  │
+│   ├── zeroday/                      chỉ gRPC, Scala  │
+│   ├── apsara/                       chỉ gRPC, Scala  ├─ cùng bố cục:
+│   ├── candy/                        chỉ gRPC, Scala  │
+│   ├── colosseum/                    chỉ gRPC, Scala  │
+│   └── nagas-treasure/               chỉ gRPC, Scala ─┘
 │       ├── build.gradle
 │       ├── docker-compose.loadtest.yml
 │       └── src/gatling/
@@ -2745,7 +2809,7 @@ Các file được track, nhóm theo chức năng. Output sinh ra (`build/`, `ta
 | `scripts/run-variant.sh` | Lần chạy có verdict đầy đủ: kiểm tra SUT, monitor, Gatling, verifier, summary. | Xem [Tham số của wrapper](#tham-số-của-wrapper). | `loadtest.sh`, bạn, CI |
 | `scripts/ensure-sut.sh` | Đảm bảo SUT đang chạy và đề nghị khởi động nếu chưa. | `--game <g> --container <name> --port <N> --health-url <url>` | `run-variant.sh` (bước 0) |
 | `scripts/monitor-resources.sh` | Lấy mẫu CPU và memory vào một file CSV. | `--container <name> [--fallback-port N] [--interval-sec N] --out <csv> --duration-sec N` (interval mặc định là 5) | `run-variant.sh` (chạy nền) |
-| `scripts/health-poll.sh` | Probe một URL HTTP và ghi vào một file CSV. | `[--url <url>] [--interval-sec N] --out <csv> --duration-sec N` (interval mặc định là 2) | `run-variant.sh` (chạy nền) |
+| `scripts/health-poll.sh` | Probe một URL HTTP và ghi vào một file CSV, hoặc probe Docker healthcheck của container khi `--url` để trống. | `[--url <url>] [--container <name>] [--interval-sec N] --out <csv> --duration-sec N` (interval mặc định là 2) | `run-variant.sh` (chạy nền) |
 | `scripts/generate-summary-html.py` | Dựng `summary.html` từ thư mục của một lần chạy. | `--variant-dir <dir>` | `run-variant.sh`, hoặc chạy tay sau khi verify lại |
 | `scripts/generate-final-report.py` | Dựng report tuân thủ dạng Markdown qua các variant. | `--variants-dir target/variants/<game> --report-out <file.md> [--host localhost] [--port 3000]` | Chạy tay (xem `games/naga777/naga777-load-test-guide.md`) |
 
@@ -2785,7 +2849,7 @@ Các file được track, nhóm theo chức năng. Output sinh ra (`build/`, `ta
 **Ghi chú về monitor và probe:**
 
 - **`monitor-resources.sh`** dùng `docker stats` trên container. Nếu container không tồn tại, nó lấy mẫu process trên host đang listen ở `--fallback-port` (tìm bằng `lsof`, đọc bằng `ps`). Nếu cũng không có, nó ghi các dòng `N/A`.
-- **`health-poll.sh`** đánh dấu một mẫu là thất bại khi status không phải 2xx hoặc request mất 5 giây trở lên (`curl --max-time 5`). **Nó dừng và thoát với mã khác 0 sau 3 lần thất bại liên tiếp**, bất kể `crash.max_consecutive_failures` đặt bao nhiêu. Khi không có `--url`, nó thử các đường dẫn riêng của silkroad trên `localhost:3000`.
+- **`health-poll.sh`** đánh dấu một mẫu là thất bại khi status không phải 2xx hoặc request mất 5 giây trở lên (`curl --max-time 5`). **Nó dừng và thoát với mã khác 0 sau 3 lần thất bại liên tiếp**, bất kể `crash.max_consecutive_failures` đặt bao nhiêu. Khi không có `--url`, nó thử các đường dẫn riêng của silkroad trên `localhost:3000` — nhưng với bonanza và silkroad, hai game giờ không còn HTTP health endpoint nào nữa, `run-variant.sh` để `--url` trống và truyền `--container` thay vào đó, nên `health-poll.sh` sẽ probe Docker healthcheck của container (`docker inspect ... .State.Health.Status`) thay vì gọi HTTP.
 
 **Chi tiết `generate-final-report.py`:**
 
@@ -2795,7 +2859,7 @@ Các file được track, nhóm theo chức năng. Output sinh ra (`build/`, `ta
 
 ### Các lớp bên trong subproject của game
 
-Game REST (silkroad, bonanza REST), dưới `src/gatling/`:
+Game REST (giờ chỉ còn silkroad — lớp REST của bonanza đã bị gỡ bỏ), dưới `src/gatling/`:
 
 | Lớp                 | Trách nhiệm                                                                     |
 |---------------------|---------------------------------------------------------------------------------|
@@ -2810,9 +2874,9 @@ Simulation gRPC không chia lớp. Một file Scala chứa các hàm dựng payl
 
 ### Hai mẫu journey
 
-Các game REST theo một trong hai mẫu:
+Các game REST từng theo một trong hai mẫu. Hiện tại silkroad là lớp REST duy nhất còn sống; lớp REST của bonanza (cột "stateful" bên dưới) đã bị gỡ bỏ khi nó chuyển hẳn sang gRPC, nhưng bảng này vẫn được giữ lại làm tham chiếu cho hai kiểu mẫu:
 
-| Khía cạnh    | Silkroad (template)                              | Bonanza (stateful)                                              |
+| Khía cạnh    | Silkroad (template)                              | Bonanza (stateful, lớp REST đã bị gỡ)                            |
 |--------------|--------------------------------------------------|-----------------------------------------------------------------|
 | Injection    | Open (`rampUsers` / `atOnceUsers`)               | Closed (`rampConcurrentUsers` + `constantConcurrentUsers`)      |
 | Định tuyến   | Modulo theo tỉ lệ (`userIndex % N == 0`)         | `randomSwitch` có trọng số (80/8/5/3/2/2)                       |
@@ -2820,9 +2884,9 @@ Các game REST theo một trong hai mẫu:
 | Khởi tạo     | Không có                                         | Mỗi VU: `BetLevels` → `ReelStrips` → `CreateSession`, rồi vào vòng lặp |
 | Endpoint     | 3                                                | 10                                                              |
 | Status của Spin | `200`                                         | **`201`**                                                       |
-| Ngôn ngữ     | Chỉ Java                                         | Java (REST) + Scala (gRPC)                                      |
+| Ngôn ngữ     | Java (REST) + Scala (gRPC)                       | Chỉ còn Scala (gRPC)                                             |
 
-Bốn simulation gRPC dùng chung một khung thứ ba, đơn giản hơn: closed model, một `Join`, rồi một vòng lặp `Spin` có pace (xem [Simulation gRPC viết bằng Scala](#simulation-grpc-viết-bằng-scala)).
+Simulation gRPC của cả chín game dùng chung một khung thứ ba, đơn giản hơn: closed model, một `Join`, rồi một vòng lặp `Spin` có pace (xem [Simulation gRPC viết bằng Scala](#simulation-grpc-viết-bằng-scala)).
 
 ## Thêm game mới
 
@@ -2840,9 +2904,9 @@ Trước khi đụng vào code, hãy ghi lại những thứ sau. Mọi bước 
 | **Tên package**                 | `com.rgp.loadtest.<pkg>`; thư mục body REST `games/<pkg>/bodies/`                         | `fruitrespinmania` (chữ thường, không có ký tự phân cách: identifier của Java không được chứa `-`) |
 | **Template**                    | Clone game nào (xem bảng bên dưới)                                                        | silkroad                           |
 | **HTTP host / port / contextPath** | REST: `game.yml`. Mọi game: `PORT` và `HEALTH_URL` của wrapper                         | `localhost` / `4000` / `/fruit`    |
-| **Health URL**                  | Nhánh `case` của `HEALTH_URL` trong `run-variant.sh`. Phải trả về 2xx và nhẹ              | `http://localhost:4000/fruit/actuator/health` |
+| **Health URL**                  | Nhánh `case` của `HEALTH_URL` trong `run-variant.sh`. Phải trả về 2xx và nhẹ, hoặc để rỗng (`""`) để dùng cơ chế Docker healthcheck thay thế (Giai đoạn 10) nếu không có HTTP endpoint | `http://localhost:4000/fruit/actuator/health` |
 | **Endpoint** (REST)             | `utils/Endpoints.java`, `requests/SlotRequests.java`                                      | `spin`, `last-spin`, `history-summary` |
-| **Status code của spin** (REST) | `status().is(...)` trong `SlotRequests`                                                   | `200` (silkroad) hoặc `201` (bonanza) |
+| **Status code của spin** (REST) | `status().is(...)` trong `SlotRequests`                                                   | `200` (silkroad); khớp với status code thật của backend |
 | **Cấu trúc body** (REST)        | `bodies/*.json`                                                                           | `{userId, gameId, betAmount}`      |
 | **Port gRPC, `pluginName`, các field mức cược** (gRPC) | Giá trị mặc định trong simulation Scala; port cũng được publish trong file compose | `9110`, `<plugin-name>` |
 | **Tên container**               | `container_name` trong file compose, dòng `GAMES` trong `loadtest.sh`, `--container`      | `game-fruit-respin-mania`          |
@@ -2855,8 +2919,8 @@ Trước khi đụng vào code, hãy ghi lại những thứ sau. Mọi bước 
 | Dạng game của bạn                                                         | Clone                                                                   | Ngôn ngữ / runtime                          |
 |---------------------------------------------------------------------------|-------------------------------------------------------------------------|---------------------------------------------|
 | REST stateless: mỗi request độc lập với nhau                              | `games/silkroad/`                                                       | Java, plugin Gatling 3.15; alias `soak` / `stress` / `spike` / `basic` |
-| REST stateful: có pha khởi tạo (tạo session), rồi một vòng lặp dùng state đã lưu | `games/bonanza/`, rồi bỏ nửa gRPC của nó (xem Giai đoạn 1)       | Java, plugin Gatling 3.15; alias `soak` / `basic` |
-| REST cộng thêm đường gRPC qua plugin WSProxy                              | `games/bonanza/` giữ nguyên                                             | Java + Scala 2.13.12; plugin 3.15 + 3.9.5 (`gatlingGrpcRt`) |
+| REST stateful: có pha khởi tạo (tạo session), rồi một vòng lặp dùng state đã lưu | Không còn ví dụ sống trong repo — bonanza đã bỏ hẳn phần REST khi chuyển sang chỉ-gRPC. Hãy dựng thêm trên luồng stateless của `games/silkroad/` (thêm một request khởi tạo và lưu response của nó vào session), hoặc lấy lại source REST cũ của bonanza từ git history | Java, plugin Gatling 3.15 |
+| REST cộng thêm đường gRPC qua plugin WSProxy                              | `games/silkroad/` giữ nguyên (giờ đã có cả nửa REST lẫn nửa gRPC)      | Java + Scala 2.13.12; plugin 3.15 + 3.9.5 (`gatlingGrpcRt`) |
 | Chỉ gRPC, và reply của `Call` mang kết quả (lỗi nghiệp vụ là `c` khác 0)   | `games/mutantmerge/`                                                    | Scala 2.13.12, Gatling 3.9.5 (`gatlingRt`), alias `grpc` |
 | Chỉ gRPC, và kết quả được đẩy qua ZMQ (reply của `Call` rỗng hoặc chỉ là ack) | `games/zeroday/` (hoặc `games/naga777/`, có comment bằng tiếng Việt) | Scala 2.13.12, Gatling 3.9.5 (`gatlingRt`), alias `grpc` |
 
@@ -2912,20 +2976,11 @@ mv "$f" "${f%/*}/${NEW_CLASS}GrpcSimulation.scala"
 grep -rl "$OLD_CLASS" games/$NEW | xargs sed -i '' "s/$OLD_CLASS/$NEW_CLASS/g"
 ```
 
-**REST stateful clone từ bonanza: bỏ nửa gRPC.**
-
-1. Xoá `src/gatlingGrpc/`.
-2. Trong `build.gradle`, xoá:
-   - `id 'scala'`
-   - `gatlingOssVersion` và `gatlingGrpcVersion`
-   - configuration `gatlingGrpcRt` cùng các dependency của nó
-   - khối `sourceSets { gatlingGrpc { … } }`
-   - task `grpc`
-   - `grpcHost` và `grpcPort` khỏi `FORWARDED_PROPS`
+**Ghi chú về mẫu REST stateful.** bonanza từng là target để clone cho một game REST stateful (pha khởi tạo cộng với vòng lặp dùng state đã lưu), nhưng nó đã bỏ hẳn phần REST khi chuyển sang chỉ-gRPC — không còn gì để clone theo mẫu đó nữa. Nếu bạn cần, hãy dựng thêm trên luồng stateless của `games/silkroad/`, hoặc lấy source REST của bonanza từ git history để tham khảo.
 
 ### Giai đoạn 2 Đăng ký vào Gradle
 
-**2.1 Đăng ký subproject.** `settings.gradle` đã có sẵn dòng mẫu bị comment cho bốn game, trong đó có `// include ':games:fruit-respin-mania'`. Bỏ comment dòng tương ứng, hoặc thêm một dòng cạnh các dòng `include` hiện có:
+**2.1 Đăng ký subproject.** `settings.gradle` đã có sẵn dòng mẫu bị comment cho game ví dụ này, `// include ':games:fruit-respin-mania'` (cùng một dòng nữa cho `last-guardian-angkor`). Bỏ comment dòng tương ứng, hoặc thêm một dòng cạnh các dòng `include` hiện có:
 
 ```groovy
 include ':games:zeroday'
@@ -2991,7 +3046,7 @@ Dùng tên ngắn, nối bằng dấu gạch ngang, vì chúng xuất hiện tro
 | HTTP method                  | `.post(...)` hay `.get(...)`                                                             |
 | URL path (sau context)       | `.post("/v1/slot/spin")`. Chỉ có `/` ở đầu; host và contextPath lấy từ `game.yml`.       |
 | Đường dẫn file body          | `.body(ElFileBody("games/fruitrespinmania/bodies/spin.json"))`. Dùng dạng **package**.   |
-| Kiểm tra status của response | `.check(status().is(200))`. Spin của bonanza trả về **201**.                             |
+| Kiểm tra status của response | `.check(status().is(200))`. Khớp với status code thật của backend — không phải endpoint REST nào cũng trả về 200. |
 | Lưu state (tuỳ chọn)         | `.check(jsonPath("$.data.sessionId").saveAs("sessionId"))`, chỉ cần khi một bước sau đọc `#{sessionId}` |
 
 **4.3** `games/$NEW/src/gatling/resources/games/$PKG/bodies/*.json`: mỗi endpoint có POST body thì có một file.
@@ -3007,7 +3062,7 @@ Dùng tên ngắn, nối bằng dấu gạch ngang, vì chúng xuất hiện tro
 Có hai quy tắc lặp đi lặp lại:
 
 - **Dùng Gatling EL `#{userId}`, đừng bao giờ dùng `${userId}`.** Dạng sau gửi đi nguyên chuỗi `${userId}`, nên mọi VU gửi cùng một giá trị. Điều đó gây xung đột distributed lock và khoảng 51 % HTTP 400.
-- **Khớp chính xác kiểu của từng field theo backend.** Một JSON string và một JSON number tạo ra hai request khác nhau. `/spin` của bonanza nhận `betAmount` là **string**, còn `/jackpot/*` nhận nó là **number**.
+- **Khớp chính xác kiểu của từng field theo backend.** Một JSON string và một JSON number tạo ra hai request khác nhau — kiểm tra từng endpoint riêng, đừng giả định chúng đồng nhất.
 
 **Game chỉ có gRPC.** Sửa `buildJoinRequest` và `buildSpinRequest` trong file Scala:
 
@@ -3019,9 +3074,9 @@ Giữ cả hai map dưới dạng `java.util.LinkedHashMap` và encode chúng b�
 
 ### Giai đoạn 5 Scenario
 
-**Game REST** dùng `scenarios/SessionJourneyScenario.java` (clone từ silkroad) hoặc `scenarios/PlayerJourneyScenario.java` (clone từ bonanza).
+**Game REST** dùng `scenarios/SessionJourneyScenario.java` (clone từ silkroad, stateless). Không còn bản clone stateful sống nào nữa — `PlayerJourneyScenario.java` của bonanza đã bị xoá khi nó chuyển sang chỉ-gRPC — xem ghi chú ở [Chọn template để clone](#chọn-template-để-clone) nếu bạn cần mẫu đó.
 
-**5.1** Đặt tên scenario là duy nhất: `DEFAULT_NAME` (silkroad) hoặc `NAME` (bonanza), theo dạng `<game>-<purpose>`. Bước 1.4 thường đã làm việc này.
+**5.1** Đặt tên scenario là duy nhất: `DEFAULT_NAME`, theo dạng `<game>-<purpose>`. Bước 1.4 thường đã làm việc này.
 
 ```java
 public static final String DEFAULT_NAME = "fruitrespinmania-session-journey";
@@ -3031,7 +3086,7 @@ Gatling từ chối hai scenario trùng tên trong cùng một `setUp()`. Tên r
 
 **5.2** Điều chỉnh cách định tuyến modulo theo tỉ lệ của silkroad: sửa các request phụ và giá trị `oneInN` của chúng. Một VU chạy request phụ khi `userIndex % oneInN == 0`, dùng `userIndex` từ feeder.
 
-**5.3** Điều chỉnh theo mẫu bonanza: sửa chuỗi khởi tạo (`betLevels → reelStrips → createSession`) và trọng số của `randomSwitch`. Bỏ những entry không áp dụng.
+**5.3** Với mẫu REST stateful (không còn source sống nữa — xem ghi chú ở trên): dựng một chuỗi khởi tạo (ví dụ `betLevels → reelStrips → createSession`) và một `randomSwitch` có trọng số theo tần suất request. Bỏ những entry không áp dụng.
 
 **Game chỉ có gRPC:** scenario nằm ngay trong file Scala (`scenario("<pkg>-grpc-player-journey")`). Tên request `"Join"` và `"Spin"` được các assertion `details("Spin")` / `details("Join")` tham chiếu lại. Đổi tên thì đổi cả hai nơi, hoặc đừng đổi.
 
@@ -3046,7 +3101,7 @@ Gatling từ chối hai scenario trùng tên trong cùng một `setUp()`. Tên r
 | `SpikeSimulation.java`   | Có **hai** tên population hardcode, `"<pkg>-spike-baseline"` và `"<pkg>-spike-burst"` (bước 1.4 đổi chúng từ `silkroad-…`). Hai tên này phải luôn khác nhau. |
 | `BasicSimulation.java`   | Danh sách `endpoints()` khớp với `Endpoints.java` và `SlotRequests.java`.                 |
 
-Với mẫu bonanza, bạn chỉ cần `SoakSimulation` và `BasicSimulation`. Class Soak của nó **kế thừa trực tiếp `Simulation`** thay vì `SoakSimulationBase`, vì base đó hardcode injection theo open model. Cứ để nguyên như vậy.
+Với mẫu REST stateful (không còn ví dụ sống, xem ghi chú ở [Chọn template để clone](#chọn-template-để-clone)), bạn chỉ cần `SoakSimulation` và `BasicSimulation`, với Soak kế thừa trực tiếp `Simulation` thay vì `SoakSimulationBase`, vì base đó hardcode injection theo open model.
 
 **Game chỉ có gRPC:**
 
@@ -3081,18 +3136,18 @@ case "$GAME" in
 esac
 ```
 
-**8.2 URL của health probe.** Thêm một dòng trả về 2xx khi backend khoẻ:
+**8.2 URL của health probe.** Thêm một dòng trả về 2xx khi backend khoẻ. Để `HEALTH_URL=""` khi backend không có HTTP endpoint nào dùng được — `ensure-sut.sh` và `health-poll.sh` khi đó sẽ chuyển sang poll trạng thái Docker healthcheck của container, và file compose ở Giai đoạn 10 của bạn phải khai báo khối `healthcheck:` thì cơ chế này mới chạy được:
 
 ```bash
 case "$GAME" in
-  bonanza)   HEALTH_URL="http://localhost:${PORT}/golden/api/configs/bet-levels" ;;
+  bonanza)   HEALTH_URL="" ;;                                                          # không có HTTP endpoint; dùng Docker healthcheck thay thế (Giai đoạn 10)
   # … các game hiện có …
   fruit-respin-mania) HEALTH_URL="http://localhost:${PORT}/fruit/actuator/health" ;;   # thêm
   *)        HEALTH_URL="http://localhost:${PORT}/actuator/health" ;;
 esac
 ```
 
-Cùng URL này điều khiển `health.csv`, kiểm tra crash PR-3 và phép thử "đã chạy chưa?" của `ensure-sut.sh`. Hãy chọn thứ gì đó nhẹ (thường dưới 50 ms). `/actuator/health` của Spring Boot là lựa chọn mặc định an toàn khi được expose; các game chỉ có gRPC dùng `/health`, riêng zeroday dùng `/api/game/zeroday/actuator/health`.
+Cùng URL này (hoặc Docker healthcheck, khi để rỗng) điều khiển `health.csv`, kiểm tra crash PR-3 và phép thử "đã chạy chưa?" của `ensure-sut.sh`. Hãy chọn thứ gì đó nhẹ (thường dưới 50 ms). `/actuator/health` của Spring Boot là lựa chọn mặc định an toàn khi được expose; các game chỉ có gRPC dùng `/health`, riêng zeroday dùng `/api/game/zeroday/actuator/health`; silkroad và bonanza không có HTTP endpoint nào nên để `HEALTH_URL` rỗng.
 
 **8.3 Tuỳ chọn:** thêm id mới vào danh sách `--game <…>` trong comment hướng dẫn sử dụng và thông báo lỗi của script.
 
@@ -3123,6 +3178,7 @@ Script sao chép file vào thư mục gốc của backend (cạnh `Dockerfile` c
 | `build: { context: ., dockerfile: Dockerfile }` | Build từ chính thư mục mà script đã chép file vào. |
 | Một `container_name` cố định | Phải trùng với container trong dòng `GAMES`. `ensure-sut.sh`, `loadtest.sh` và `monitor-resources.sh` so khớp theo đúng tên. |
 | Port `"${HTTP_PORT:-3000}:<app port>"`, thêm port gRPC với game gRPC | `ensure-sut.sh` luôn đặt `HTTP_PORT` bằng port của wrapper. Mặc định `:-3000` chỉ có tác dụng khi bạn chạy compose bằng tay. |
+| Khối `healthcheck:` trên chính service của game, khi không có HTTP endpoint để probe | Bắt buộc mỗi khi `HEALTH_URL` ở Giai đoạn 8.2 để rỗng cho game này — `ensure-sut.sh`/`health-poll.sh` khi đó sẽ chờ trạng thái health của `docker inspect` thay vì poll một URL. Probe đúng port mà simulation của bạn thực sự gọi tới, ví dụ `nc -z localhost <grpc-port>` (`games/bonanza/`) hoặc kiểm tra `/dev/tcp` nếu image không có `nc`/`curl` (`games/silkroad/`). |
 | Mongo, Redis, … riêng có healthcheck, và `depends_on: condition: service_healthy` | Tự đủ; không dùng hạ tầng chung. |
 | Thiết lập mock wallet | Ví dụ `WALLET_GATEWAY: mock` (naga777, mutantmerge) hoặc `LUIGI_WALLET_ENABLED: "false"` (silkroad, zeroday), để không cần wallet hay auth service thật. |
 | `mem_limit`, `logging: driver: json-file` | Giới hạn memory sát thực tế, và `docker logs` vẫn dùng được để kiểm tra log sau khi chạy. |
@@ -3142,6 +3198,11 @@ services:
       dockerfile: Dockerfile
     container_name: game-fruit-respin-mania
     mem_limit: 768m
+    # Không có HTTP endpoint để probe? Để HEALTH_URL="" ở Giai đoạn 8.2 và thêm healthcheck ở đây:
+    # healthcheck:
+    #   test: ["CMD", "nc", "-z", "localhost", "<grpc-port>"]
+    #   interval: 5s
+    #   retries: 60
     environment:
       MONGODB_URI: mongodb://mongo:27017/<db-name>
       REDIS_HOST: redis
@@ -3187,9 +3248,9 @@ Chạy các bước sau theo thứ tự. Nếu một bước fail, quay lại gi
 **12.1 Compile.** Bước này bắt lỗi package, import và FQCN:
 
 ```bash
-./gradlew :games:$NEW:compileGatlingJava                                   # clone từ silkroad, hoặc clone từ bonanza đã bỏ gRPC
-./gradlew :games:$NEW:compileGatlingJava :games:$NEW:compileGatlingGrpcScala  # clone từ bonanza có gRPC
-./gradlew :games:$NEW:compileGatlingScala                                  # clone từ game chỉ có gRPC
+./gradlew :games:$NEW:compileGatlingJava                                   # clone chỉ REST (silkroad)
+./gradlew :games:$NEW:compileGatlingJava :games:$NEW:compileGatlingGrpcScala  # clone REST + gRPC (silkroad giữ nguyên)
+./gradlew :games:$NEW:compileGatlingScala                                  # clone chỉ gRPC (bonanza, naga777, mutantmerge, zeroday, apsara, candy, colosseum, nagas-treasure)
 ```
 
 Kết quả mong đợi là `BUILD SUCCESSFUL`. Module chỉ có gRPC sẽ báo `compileGatlingJava NO-SOURCE`, điều đó bình thường.
@@ -3242,8 +3303,7 @@ Với smoke test gRPC ngắn, các assertion `requestRate` / `eventCount` của 
 ### Các lỗi developer hay gặp
 
 - **Gatling EL là `#{userId}`, không phải `${userId}`** (Java DSL của Gatling 3.7+). Dạng sai gửi đi một chuỗi nguyên văn và gây xung đột lock ở backend, biểu hiện là khoảng 51 % HTTP 400.
-- **Spin của bonanza trả về HTTP 201**; của silkroad trả về 200. `status().is(…)` được đặt riêng theo game.
-- **Tên field của bonanza không nhất quán là có chủ đích** (chúng khớp với backend). `/sessions` và `/spin` dùng `playerId`; `/jackpot/*` và `/history/*` dùng `userId`. `betAmount` là JSON string với `/spin` và là number với `/jackpot/*`.
+- **Khớp `status().is(…)` với status code thật của backend.** Đừng mặc định là 200 cho mọi endpoint REST — nó được đặt riêng theo game (spin của silkroad trả về 200).
 - **Tên scenario phải là duy nhất trong một `setUp()`.** Simulation Spike có hai population, nên phải truyền hai tên khác nhau (Giai đoạn 6).
 - **Một flag `-D` mới không có tác dụng?** Thêm nó vào `FORWARDED_PROPS` trong `games/<game>/build.gradle` (Giai đoạn 2.3). Với các task `JavaExec` của gRPC, danh sách đó là lối vào duy nhất. `gameName` do các alias task inject.
 - **Wrapper luôn forward `-Dport`**, và nó override port trong `game.yml`. Giữ nhánh `case` của `PORT` trong `run-variant.sh` đồng bộ với `game.yml`.
@@ -3262,4 +3322,4 @@ Với smoke test gRPC ngắn, các assertion `requestRate` / `eventCount` của 
 - [`games/naga777/naga777-load-test-guide.md`](games/naga777/naga777-load-test-guide.md): cách chạy naga777 và đọc kết quả, bao gồm cả `generate-final-report.py`.
 - [`core/libs/README.md`](core/libs/README.md): JAR GaaS đóng gói sẵn lấy từ đâu và vì sao phải hạ phiên bản.
 - Gatling: [Cú pháp EL](https://docs.gatling.io/reference/script/core/session/el/) · [Gradle plugin](https://docs.gatling.io/reference/integrations/build-tools/gradle-plugin/) · [gRPC DSL](https://docs.gatling.io/reference/script/protocols/grpc/). Link cuối mô tả DSL chính chủ bị khoá sau Enterprise, thứ mà repo này **không** dùng cho các simulation gRPC.
-- [`phisgr/gatling-grpc`](https://github.com/phisgr/gatling-grpc): plugin gRPC cộng đồng (0.17.0, Gatling 3.9.5) đứng sau cả bốn simulation `Grpc`. Plugin này đã bị archive ở upstream.
+- [`phisgr/gatling-grpc`](https://github.com/phisgr/gatling-grpc): plugin gRPC cộng đồng (0.17.0, Gatling 3.9.5) đứng sau cả chín simulation `Grpc`. Plugin này đã bị archive ở upstream.

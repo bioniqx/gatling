@@ -1,6 +1,6 @@
 {
   "userId": "#{userId}",
-  "gameId": "silk_road_usecase",
+  "gameId": "game-silk-road-caravans",
   "betAmount": 1.0,
   "isBuyFeature": false,
   "isCheatJackpot": false,

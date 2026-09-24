@@ -1,0 +1,7 @@
+# ============================================================================
+# Apsara Paradise — Per-Game SLA Override
+# ============================================================================
+#
+# Only list fields that differ from config/sla-thresholds.yml (core); missing
+# fields inherit core. Uses core defaults for now — tune after a production baseline.
+# ============================================================================

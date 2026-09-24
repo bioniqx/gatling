@@ -1,10 +1,10 @@
 # ============================================================================
-# Golden Boat Bonanza — Per-Game Override
+# Candy Frenzy — Per-Game Override
 # ============================================================================
 #
-# gRPC-only: the backend runs with spring.main.web-application-type=none and
-# has no HTTP endpoints.
+# gRPC-only: REST is used only by run-variant.sh's health probe, which builds
+# its own URL (http://localhost:3012/health).
 #
 # gRPC endpoint (join + spin) is NOT configured here — the simulation reads
-# -DgrpcHost / -DgrpcPort (default localhost:9091).
+# -DgrpcHost / -DgrpcPort (default localhost:9098).
 # ============================================================================

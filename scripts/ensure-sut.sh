@@ -34,6 +34,7 @@ log() { echo "[ensure-sut] $*"; }
 die() { echo "[ensure-sut] ERROR: $*" >&2; exit 1; }
 
 is_healthy() {
+  [[ -z "$HEALTH_URL" ]] && return 1
   local code
   code=$(curl -s -o /dev/null -m 5 -w '%{http_code}' "$HEALTH_URL" || true)
   [[ "$code" == 2* ]]
@@ -53,7 +54,11 @@ if container_running || is_healthy; then
   exit 0
 fi
 
-log "The ${GAME} game server isn't running (no running container '${CONTAINER}', and ${HEALTH_URL} doesn't answer)."
+if [[ -n "$HEALTH_URL" ]]; then
+  log "The ${GAME} game server isn't running (no running container '${CONTAINER}', and ${HEALTH_URL} doesn't answer)."
+else
+  log "The ${GAME} game server isn't running (no running container '${CONTAINER}', and its Docker healthcheck isn't healthy)."
+fi
 
 [[ -f "$COMPOSE_SRC" ]] || die "${GAME} can't be started automatically (games/${GAME}/ has no ${COMPOSE_FILE}). Start the game server yourself, then run again."
 [[ -t 0 ]] || die "can't ask where the source code is (no terminal). Start the game server yourself, then run again:
@@ -98,7 +103,11 @@ log "Starting the game server (the first time can take a few minutes): ${START_C
 (cd "$SOURCE_DIR" && HTTP_PORT="$PORT" docker compose -f "$COMPOSE_FILE" up -d --build) ||
   die "couldn't start the game server (see the error above). If it says a port is already in use, stop the other game's containers and run again."
 
-log "Waiting for the server to answer ${HEALTH_URL} (up to ${HEALTH_TIMEOUT_SEC}s)"
+if [[ -n "$HEALTH_URL" ]]; then
+  log "Waiting for the server to answer ${HEALTH_URL} (up to ${HEALTH_TIMEOUT_SEC}s)"
+else
+  log "Waiting for the container's Docker healthcheck to report healthy (up to ${HEALTH_TIMEOUT_SEC}s)"
+fi
 DEADLINE=$((SECONDS + HEALTH_TIMEOUT_SEC))
 until is_healthy || container_healthy; do
   if (( SECONDS >= DEADLINE )); then

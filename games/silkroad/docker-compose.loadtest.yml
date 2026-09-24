@@ -28,6 +28,15 @@ services:
     ports:
       - "${HTTP_PORT:-3000}:3000"
       - "9093:9093"
+    # No actuator on this backend, so an HTTP health probe has nothing to hit. The runtime image
+    # (eclipse-temurin:17-jre, Ubuntu-based) has no `nc`, but bash's /dev/tcp works — probe the
+    # gRPC port instead, since that's what the load test actually needs up.
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ': < /dev/tcp/127.0.0.1/9093' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
     logging:
       driver: json-file
     depends_on:

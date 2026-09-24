@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Poll an HTTP endpoint and record status/latency. Exits non-zero on 3 consecutive failures.
-# Usage: health-poll.sh [--url <url>] [--interval-sec N] --out <path> --duration-sec N
+# Usage: health-poll.sh [--url <url>] [--container <name>] [--interval-sec N] --out <path> --duration-sec N
 #
-# Fallback probe order: /actuator/health (GET) → /api/game/caravans/v1/slot/last-spin (POST) → / (GET)
+# Fallback probe order (only when --url and --container are both empty):
+#   /actuator/health (GET) → /api/game/caravans/v1/slot/last-spin (POST) → / (GET)
+#
+# Docker-health mode: when --url is empty and --container is given, each probe is
+# `docker inspect` of the container's healthcheck status instead of an HTTP call. Rows are
+# still written in the same "timestamp,http_status,total_seconds" format the HTTP mode uses
+# (200/0.000 for healthy, 000/0.000 otherwise) so ThresholdVerifier's parseHealthCsv keeps working.
 set -euo pipefail
 
 URL=""
+CONTAINER=""
 INTERVAL=2
 OUT=""
 DURATION=0
@@ -23,6 +30,7 @@ PROBE_CANDIDATES=(
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --url)          URL="$2";      shift 2 ;;
+    --container)    CONTAINER="$2"; shift 2 ;;
     --interval-sec) INTERVAL="$2"; shift 2 ;;
     --out)          OUT="$2";      shift 2 ;;
     --duration-sec) DURATION="$2"; shift 2 ;;
@@ -77,7 +85,17 @@ resolve_probe() {
   echo "GET ${BASE_URL}/"
 }
 
-if [[ -n "$URL" ]]; then
+# Single-shot probe of a container's Docker healthcheck status. Prints "healthy" or anything
+# else (missing container, no healthcheck, starting, unhealthy) counts as a failed probe.
+probe_docker_status() {
+  docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$1" 2>/dev/null || true
+}
+
+MODE="http"
+if [[ -z "$URL" && -n "$CONTAINER" ]]; then
+  MODE="docker"
+  echo "[health-poll] Docker-health mode: probing container '$CONTAINER'" >&2
+elif [[ -n "$URL" ]]; then
   PROBE_URL="$URL"
   # POSIX-compatible base URL extraction (no grep -P)
   BASE_URL=$(echo "$URL" | sed -E 's,(https?://[^/]+).*,\1,')
@@ -85,14 +103,15 @@ if [[ -n "$URL" ]]; then
   if [[ "$PROBE_URL" == */slot/last-spin* ]]; then
     PROBE_METHOD="POST"
   fi
+  echo "[health-poll] Using probe URL: $PROBE_URL (method: $PROBE_METHOD)" >&2
 else
   echo "[health-poll] Resolving probe URL from fallback candidates..." >&2
   resolved=$(resolve_probe)
   PROBE_METHOD="${resolved%% *}"
   PROBE_URL="${resolved#* }"
+  echo "[health-poll] Using probe URL: $PROBE_URL (method: $PROBE_METHOD)" >&2
 fi
 
-echo "[health-poll] Using probe URL: $PROBE_URL (method: $PROBE_METHOD)" >&2
 echo "timestamp,http_status,total_seconds" > "$OUT"
 
 consecutive_failures=0
@@ -107,10 +126,20 @@ while true; do
   [[ "$elapsed" -ge "$DURATION" ]] && break
 
   ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-  result=$(probe_timed "$PROBE_METHOD" "$PROBE_URL")
 
-  http_code=$(echo "$result" | cut -d',' -f1)
-  time_total=$(echo "$result" | cut -d',' -f2)
+  if [[ "$MODE" == "docker" ]]; then
+    status=$(probe_docker_status "$CONTAINER")
+    if [[ "$status" == "healthy" ]]; then
+      http_code="200"
+    else
+      http_code="000"
+    fi
+    time_total="0.000"
+  else
+    result=$(probe_timed "$PROBE_METHOD" "$PROBE_URL")
+    http_code=$(echo "$result" | cut -d',' -f1)
+    time_total=$(echo "$result" | cut -d',' -f2)
+  fi
 
   echo "${ts},${http_code},${time_total}" >> "$OUT"
 

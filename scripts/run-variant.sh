@@ -75,27 +75,40 @@ if [[ -z "$PORT" ]]; then
     mutantmerge) PORT=3000 ;;
     zeroday)  PORT=3000 ;;
     silkroad) PORT=3000 ;;
+    apsara)   PORT=3011 ;;
+    candy)    PORT=3012 ;;
+    colosseum) PORT=3013 ;;
+    nagas-treasure) PORT=3014 ;;
     *)        PORT=3000 ;;
   esac
 fi
 
 # Build a per-game health probe URL. health-poll.sh's built-in fallback candidates are
 # silkroad-specific (hardcoded base http://localhost:3000) — passing --url makes the probe
-# game- and port-correct.
+# game- and port-correct. bonanza and silkroad have no usable HTTP health endpoint anymore, so
+# HEALTH_URL is left empty and health-poll.sh instead probes the container's Docker healthcheck.
 case "$GAME" in
-  bonanza)   HEALTH_URL="http://localhost:${PORT}/golden/api/configs/bet-levels" ;;
+  bonanza)   HEALTH_URL="" ;;
   naga777)  HEALTH_URL="http://localhost:${PORT}/health" ;;
   # Unified dev stack clears the context path; the traefik deploy uses /api/game/mutant-merge/health.
   mutantmerge) HEALTH_URL="http://localhost:${PORT}/health" ;;
   zeroday)  HEALTH_URL="http://localhost:${PORT}/api/game/zeroday/actuator/health" ;;
-  silkroad) HEALTH_URL="http://localhost:${PORT}/actuator/health" ;;
+  silkroad) HEALTH_URL="" ;;
+  apsara)   HEALTH_URL="http://localhost:${PORT}/api/game/apsara/api/ping" ;;
+  candy)    HEALTH_URL="http://localhost:${PORT}/health" ;;
+  colosseum) HEALTH_URL="http://localhost:${PORT}/health" ;;
+  nagas-treasure) HEALTH_URL="http://localhost:${PORT}/api/game/nagas/actuator/health" ;;
   *)        HEALTH_URL="http://localhost:${PORT}/actuator/health" ;;
 esac
 
 DURATION_SEC=$(( DURATION_MINUTES * 60 + RAMP_MINUTES * 60 + 120 ))  # match maxDuration + pad
 
 echo "[run-variant] Game: ${GAME}  Variant: ${VARIANT}  Simulation: ${SIMULATION}  Container: ${CONTAINER}  Port: ${PORT}"
-echo "[run-variant] Health probe URL: ${HEALTH_URL}"
+if [[ -n "$HEALTH_URL" ]]; then
+  echo "[run-variant] Health probe URL: ${HEALTH_URL}"
+else
+  echo "[run-variant] Health probe: docker healthcheck of ${CONTAINER}"
+fi
 
 # 0. Make sure the SUT is up — offers to start it from a source dir or a git clone if not.
 "${SCRIPT_DIR}/ensure-sut.sh" --game "$GAME" --container "$CONTAINER" --port "$PORT" --health-url "$HEALTH_URL"
@@ -131,9 +144,11 @@ trap cleanup SIGINT SIGTERM
 MONITOR_PID=$!
 echo "[run-variant] Resource monitor PID: $MONITOR_PID"
 
-# 3. Start health probe in background
+# 3. Start health probe in background. --container is only used by health-poll.sh when
+# --url is empty (docker-healthcheck mode); it's harmless to always pass it.
 "${SCRIPT_DIR}/health-poll.sh" \
   --url "$HEALTH_URL" \
+  --container "$CONTAINER" \
   --interval-sec 2 \
   --out "${OUT_DIR}/health.csv" \
   --duration-sec "$DURATION_SEC" &

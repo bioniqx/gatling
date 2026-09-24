@@ -1,0 +1,83 @@
+// Nagas Treasure load test — gRPC-only (the game has no REST spin endpoint).
+//
+// Same runtime as games/zeroday: Gatling 3.9.5 + com.github.phisgr:gatling-grpc via JavaExec,
+// because Gatling 3.15's OSS gRPC DSL is capped at 5 VU / 5 minutes and io.gatling.gradle 3.9.5
+// breaks on Gradle 9.
+//
+// Run examples (from repo root) — needs the be-nagas-treasure backend running locally:
+//   ./gradlew :games:nagas-treasure:grpc -Dusers=1 -DdurationMinutes=1 -DrampMinutes=0 \
+//                                        -DrequestRate=0 -DeventCount=0
+//   ./gradlew :games:nagas-treasure:grpc -Dusers=1000 -DdurationMinutes=60 -Dbet=1.00
+
+plugins {
+    id 'java'
+    id 'scala'
+}
+
+def gatlingOssVersion = '3.9.5'
+def gatlingGrpcVersion = '0.17.0'
+
+configurations {
+    gatlingRt
+}
+
+dependencies {
+    gatlingRt "io.gatling.highcharts:gatling-charts-highcharts:${gatlingOssVersion}"
+    gatlingRt "com.github.phisgr:gatling-grpc:${gatlingGrpcVersion}"
+    gatlingRt 'org.scala-lang:scala-library:2.13.12'
+
+    // Proto stubs + MessagePack Codec from :core, without the Gatling 3.15 it exports.
+    gatlingRt(project(':core')) {
+        exclude group: 'io.gatling'
+        exclude group: 'io.gatling.highcharts'
+    }
+}
+
+sourceSets {
+    gatling {
+        scala.srcDirs = ['src/gatling/scala']
+        java.srcDirs = []
+        resources.srcDirs = ['src/gatling/resources']
+        compileClasspath = configurations.gatlingRt
+        runtimeClasspath = output + configurations.gatlingRt
+    }
+}
+
+// -D flags the simulation reads at runtime; Gradle does not forward them to the JavaExec fork.
+def FORWARDED_PROPS = [
+    'users', 'durationMinutes', 'rampMinutes', 'host', 'port', 'paceSec',
+    'requestRate', 'eventCount', 'grpcHost', 'grpcPort', 'bet',
+]
+
+def SIMULATIONS = [
+    grpc: 'com.rgp.loadtest.nagastreasure.grpc.NagasTreasureGrpcSimulation',
+]
+
+SIMULATIONS.each { alias, fqcn ->
+    tasks.register(alias, JavaExec) {
+        group = 'gatling'
+        description = "Run ${alias} simulation (${fqcn})"
+        dependsOn tasks.named('gatlingClasses')
+        classpath = sourceSets.gatling.runtimeClasspath
+        mainClass = 'io.gatling.app.Gatling'
+        args '-s', fqcn,
+             '-rf', layout.buildDirectory.dir('reports/gatling').get().asFile.absolutePath
+        jvmArgs = [
+            '-server',
+            '-Xmx2G',
+            '--add-opens=java.base/java.lang=ALL-UNNAMED',
+            '--add-opens=java.base/java.util=ALL-UNNAMED',
+            '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+        ]
+        // Load tests always run — no input fingerprint can detect "same SUT state"
+        outputs.upToDateWhen { false }
+        doFirst {
+            // Lets SlaConfigLoader find games/<gameName>/src/gatling/resources/sla-thresholds.yml.
+            systemProperty 'gameName', project.name
+            FORWARDED_PROPS.each { name ->
+                def v = System.getProperty(name)
+                if (v != null) systemProperty(name, v)
+            }
+        }
+    }
+}

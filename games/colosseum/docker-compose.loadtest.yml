@@ -1,0 +1,63 @@
+# Local SUT for rgp-game-load-test: Colosseum Showdown + its own Mongo/Redis.
+# Copy into the be-colosseum-showdown repo root, then: docker compose -f docker-compose.loadtest.yml up -d --build
+# Host HTTP port defaults to 3013; set HTTP_PORT=3020 if another game already holds 3013.
+name: colosseum-loadtest
+
+services:
+  game-colosseum-showdown:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: game-colosseum-showdown:latest
+    container_name: game-colosseum-showdown
+    mem_limit: 768m
+    memswap_limit: 768m
+    env_file:
+      - .env.staging
+    environment:
+      JVM_OPTS: "-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      SERVER_SERVLET_CONTEXT_PATH: "/"
+      MONGO_URI: mongodb://mongo:27017/colosseum_showdown
+      REDIS_HOST: redis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "0"
+      GRPC_PORT: "9102"
+      # No Luigi wallet locally: short-circuit HttpWalletAdapter to a mocked balance (no network call).
+      WALLET_GATEWAY: http
+      WALLET_ENABLED: "false"
+      # No ZMQ subscriber locally; PUB sockets connect and drop messages.
+      ZMQ_PUBLISHER_ADDRESS: tcp://127.0.0.1:10004
+      ZMQ_INTERNAL_PUBLISHER_ADDRESS: tcp://127.0.0.1:11004
+    ports:
+      - "${HTTP_PORT:-3013}:8080"
+      - "9102:9102"
+    logging:
+      driver: json-file
+    healthcheck:
+      # No spring-boot-actuator dependency in this backend (management.* in application.yml is
+      # dead config) — the real probe is the custom HealthController at /health.
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20

@@ -7,11 +7,15 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # One row per game: id | display name | container | simulations | Basic scenarios
 GAMES=(
-  "silkroad|Silk Road Caravans|game-silk-road-caravans|Soak Stress Spike Basic|spin last-spin history-summary all chain burst"
-  "bonanza|Golden Boat Bonanza|game-golden-boat-bonanza|Soak Basic Grpc|BetLevels ReelStrips CreateSession Spin JackpotPools HistorySessions"
+  "silkroad|Silk Road Caravans|game-silk-road-caravans|Soak Stress Spike Basic Grpc|spin last-spin history-summary all chain burst"
+  "bonanza|Golden Boat Bonanza|game-golden-boat-bonanza|Grpc|"
   "naga777|Naga's Fortune 777|stable-naga_fortune_777|Grpc|"
   "mutantmerge|Mutant Merge|stable-game-mutant-merge|Grpc|"
   "zeroday|Zero Day|game-zero-day|Grpc|"
+  "apsara|Apsara Paradise|game-apsara-paradise|Grpc|"
+  "candy|Candy Frenzy|game-candy-frenzy|Grpc|"
+  "colosseum|Colosseum Showdown|game-colosseum-showdown|Grpc|"
+  "nagas-treasure|Naga's Treasure|game-nagas-treasure|Grpc|"
 )
 
 # Numbered list of the given options; prints the 1-based index picked.

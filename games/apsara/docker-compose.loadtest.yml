@@ -1,0 +1,63 @@
+# Local SUT for rgp-game-load-test: Apsara Paradise + its own Mongo/Redis (no RabbitMQ — this
+# backend has none; wallet is short-circuited to a mock, no Luigi/HTTP wallet gateway needed).
+# Copy into the be-apsara-paradise repo root, then:
+#   HTTP_PORT=3011 docker compose -f docker-compose.loadtest.yml up -d --build
+# Health: http://localhost:3011/api/game/apsara/api/ping (no spring-boot-starter-actuator in this
+# backend — PingController aggregates redis/mongo/grpc into 200 UP / 503 DEGRADED)
+name: apsara-loadtest
+
+services:
+  game-apsara-paradise:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: game-apsara-paradise:latest
+    container_name: game-apsara-paradise
+    mem_limit: 768m
+    memswap_limit: 768m
+    environment:
+      JVM_OPTS: "-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      SPRING_PROFILES_ACTIVE: redis
+      SERVER_PORT: "3000"
+      SERVER_SERVLET_CONTEXT_PATH: /api/game/apsara
+      GRPC_SERVER_PORT: "9095"
+      MONGODB_URI: mongodb://mongo:27017/apsara-paradise
+      MONGODB_DATABASE: apsara-paradise
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "15"
+      # HTTP wallet adapter (default gateway) short-circuited to a mocked WalletResult — no
+      # external wallet/auth service needed for a local load test.
+      WALLET_ENABLED: "false"
+      CHEAT_ENABLED: "false"
+    ports:
+      - "${HTTP_PORT:-3011}:3000"
+      - "9095:9095"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/game/apsara/api/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging:
+      driver: json-file
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20

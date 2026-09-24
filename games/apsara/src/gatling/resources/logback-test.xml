@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  grpc-java-netty logs every HTTP/2 frame at DEBUG; at 1000 VU x 60 min that floods gatling.log.
+  Root WARN keeps the console summary and assertion output that run-variant.sh parses.
+-->
+<configuration>
+
+	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} [%-5level] %logger{15} - %msg%n%rEx</pattern>
+		</encoder>
+		<immediateFlush>false</immediateFlush>
+	</appender>
+
+	<!-- uncomment and set to DEBUG to log failing gRPC calls only -->
+	<!--<logger name="com.github.phisgr.gatling.grpc" level="DEBUG" />-->
+
+	<root level="WARN">
+		<appender-ref ref="CONSOLE" />
+	</root>
+
+</configuration>

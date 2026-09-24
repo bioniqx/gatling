@@ -1,0 +1,63 @@
+# Local SUT for rgp-game-load-test: Nagas Treasure + its own Mongo/Redis.
+# Copy into the be-nagas-treasure repo root, then: docker compose -f docker-compose.loadtest.yml up -d --build
+# Host HTTP port defaults to 3014; set HTTP_PORT=3020 if another game already holds 3014.
+# gRPC is fixed at 9092 (the Gatling gRPC simulation dials it directly, no wsproxy needed).
+name: nagas-treasure-loadtest
+
+services:
+  game-nagas-treasure:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: game-nagas-treasure:latest
+    container_name: game-nagas-treasure
+    mem_limit: 768m
+    memswap_limit: 768m
+    env_file:
+      - .env.staging
+    environment:
+      JVM_OPTS: "-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      # "trial" activates TrialPersistenceConfig's in-memory WalletPort/SlotStatePort/History —
+      # neither HttpWalletAdapter nor LuigiTransferGatewayAdapter is enabled below, so without it
+      # there would be no WalletPort bean at all and the context would fail to start.
+      SPRING_PROFILES_ACTIVE: redis,mongo,trial
+      MONGODB_URI: mongodb://mongo:27017/nagas-treasure
+      MONGODB_DATABASE: nagas-treasure
+      REDIS_HOST: redis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "0"
+      LUIGI_WALLET_ENABLED: "false"
+      WALLET_HTTP_ENABLED: "false"
+      # No ZMQ subscriber locally; PUB sockets connect and drop messages.
+      ZMQ_PUBLISHER_ADDRESS: tcp://127.0.0.1:10004
+      ZMQ_INTERNAL_PUBLISHER_ADDRESS: tcp://127.0.0.1:11004
+    ports:
+      - "${HTTP_PORT:-3014}:3000"
+      - "9092:9092"
+    logging:
+      driver: json-file
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/game/nagas/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20

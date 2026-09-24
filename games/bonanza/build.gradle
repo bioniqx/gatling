@@ -1,29 +1,20 @@
-// Golden Boat Bonanza load test — TWO Gatling runtimes in one module.
+// Golden Boat Bonanza load test — gRPC-only (the backend runs with
+// spring.main.web-application-type=none and has no HTTP controllers).
 //
-//   • REST sim  (Java, src/gatling/java)       — Gatling 3.15 via the io.gatling.gradle plugin
-//   • gRPC sim  (Scala, src/gatlingGrpc/scala) — Gatling 3.9.5 + com.github.phisgr:gatling-grpc
-//
-// Why split: Gatling 3.15's first-party gRPC DSL is an Enterprise feature and its OSS mode aborts
-// any run above 5 VUs / 5 minutes, so the 1000-VU production gate cannot run on it. The community
-// plugin has no cap but its last release (0.17.0) targets Gatling 3.9.5, and io.gatling.gradle
-// 3.9.5.x breaks on Gradle 9 (`unknown property 'reportsDir'`). So the gRPC simulation lives in
-// its own source set with a hand-built 3.9.5 classpath, launched through JavaExec, while the REST
-// simulations keep the 3.15 plugin untouched — Gatling's HTTP DSL is fully OSS and uncapped.
-// Same arrangement as games/naga777, which is gRPC-only and therefore needs no split.
+// Same runtime as games/naga777: Gatling 3.9.5 + com.github.phisgr:gatling-grpc via JavaExec,
+// because Gatling 3.15's OSS gRPC DSL is capped at 5 VU / 5 minutes and io.gatling.gradle 3.9.5
+// breaks on Gradle 9 (`unknown property 'reportsDir'`).
 //
 // Java-gen proto stubs come from :core's `plugin_service.proto` (no ScalaPB; the Scala simulation
 // reuses the Java classes directly).
 //
-// Run examples (from repo root) — host/port/contextPath load từ src/gatling/resources/game.yml:
-//   ./gradlew :games:bonanza:soak  -Dusers=5 -DdurationMinutes=1 -DrampMinutes=1
-//   ./gradlew :games:bonanza:basic -Dscenario=BetLevels -Dusers=1 -Drequests=1
-//   ./gradlew :games:bonanza:grpc  -Dusers=5 -DdurationMinutes=1 -DrampMinutes=1 \
+// Run example (from repo root):
+//   ./gradlew :games:bonanza:grpc -Dusers=5 -DdurationMinutes=1 -DrampMinutes=1 \
 //                                 -DgrpcHost=localhost -DgrpcPort=9091
 
 plugins {
     id 'java'
     id 'scala'
-    id 'io.gatling.gradle' version "${gatlingGradleVersion}"
 }
 
 def gatlingOssVersion = '3.9.5'
@@ -34,9 +25,7 @@ configurations {
 }
 
 dependencies {
-    gatlingImplementation project(':core')
-
-    // --- gRPC simulation classpath (Gatling 3.9.5, isolated from the 3.15 one above) ---
+    // --- gRPC simulation classpath ---
     gatlingGrpcRt "io.gatling.highcharts:gatling-charts-highcharts:${gatlingOssVersion}"
     gatlingGrpcRt "com.github.phisgr:gatling-grpc:${gatlingGrpcVersion}"
     gatlingGrpcRt 'org.scala-lang:scala-library:2.13.12'
@@ -59,49 +48,17 @@ sourceSets {
     }
 }
 
-gatling {
-    jvmArgs = [
-        '-server',
-        '-Xmx2G',
-        '--add-opens=java.base/java.lang=ALL-UNNAMED',
-        '--add-opens=java.base/java.util=ALL-UNNAMED',
-        '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
-    ]
-}
-
+// -D flags the simulation reads at runtime; Gradle does not forward them to the JavaExec fork.
 def FORWARDED_PROPS = [
-    'users', 'requests', 'durationMinutes', 'rampMinutes', 'thinkTimeMin', 'thinkTimeMax',
-    'host', 'port', 'contextPath', 'scenario', 'maxResponseTimeMs', 'paceSec',
-    // Legacy BonanzaRestSimulation parity: global throughput + volume floors (REST + gRPC).
+    'users', 'durationMinutes', 'rampMinutes', 'paceSec',
+    // Throughput + volume floors — ported verbatim from the legacy standalone repo.
     'requestRate', 'eventCount',
     // gRPC simulation: WSProxy plugin endpoint host/port.
     'grpcHost', 'grpcPort',
 ]
 
-// REST simulations — Gatling 3.15 via the io.gatling.gradle plugin.
-def SIMULATIONS = [
-    soak  : 'com.rgp.loadtest.bonanza.simulations.SoakSimulation',
-    basic : 'com.rgp.loadtest.bonanza.simulations.BasicSimulation',
-]
-
-SIMULATIONS.each { alias, fqcn ->
-    tasks.register(alias, io.gatling.gradle.GatlingRunTask) {
-        group = 'gatling'
-        description = "Run ${alias} simulation (${fqcn})"
-        simulationClassName = fqcn
-        outputs.upToDateWhen { false }
-        def fwd = ['gameName': project.name]
-        FORWARDED_PROPS.each { name ->
-            def v = System.getProperty(name)
-            if (v != null) fwd[name] = v
-        }
-        systemProperties = fwd
-    }
-}
-
-// gRPC simulation — Gatling 3.9.5, launched directly so the io.gatling.gradle plugin (pinned to
-// 3.15 for this module's REST tasks) never sees this classpath. Writes into the same reports dir
-// so scripts/run-variant.sh picks the run up unchanged.
+// gRPC simulation — Gatling 3.9.5, launched directly via JavaExec. Writes into the same reports
+// dir so scripts/run-variant.sh picks the run up unchanged.
 tasks.register('grpc', JavaExec) {
     group = 'gatling'
     description = 'Run grpc simulation (com.rgp.loadtest.bonanza.grpc.BonanzaGrpcSimulation)'

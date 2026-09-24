@@ -1,20 +1,59 @@
-// Silk Road Caravans load test — extends core/ template.
+// Silk Road Caravans load test — TWO Gatling runtimes in one module.
+//
+//   • REST sim  (Java, src/gatling/java)       — Gatling 3.15 via the io.gatling.gradle plugin
+//   • gRPC sim  (Scala, src/gatlingGrpc/scala) — Gatling 3.9.5 + com.github.phisgr:gatling-grpc
+//
+// Why split: Gatling 3.15's first-party gRPC DSL is Enterprise-gated and aborts above 5 VUs /
+// 5 minutes; the community plugin has no cap but targets Gatling 3.9.5, and io.gatling.gradle
+// 3.9.5.x breaks on Gradle 9. So the gRPC simulation lives in its own source set with a
+// hand-built 3.9.5 classpath, launched through JavaExec — same arrangement bonanza used to have.
 //
 // Run examples (from repo root):
 //   ./gradlew :games:silkroad:soak    -Dusers=50 -DdurationMinutes=1 -DrampMinutes=1
 //   ./gradlew :games:silkroad:stress  -DusersStart=10 -DusersEnd=20 -DdurationMinutes=1
 //   ./gradlew :games:silkroad:spike   -Dbaseline=5 -Dspike=10 -Dcycles=2 -DcycleIntervalMinutes=1
 //   ./gradlew :games:silkroad:basic   -Dscenario=spin -Dusers=1 -Drequests=1
+//   ./gradlew :games:silkroad:grpc    -Dusers=5 -DdurationMinutes=1 -DrampMinutes=1 -Dbet=1.00
 //
-// Or pick any simulation manually:
+// Or pick any REST simulation manually:
 //   ./gradlew :games:silkroad:gatlingRun --simulation com.rgp.loadtest.silkroad.simulations.SoakSimulation
 
 plugins {
     id 'io.gatling.gradle' version "${gatlingGradleVersion}"
+    id 'scala'
+}
+
+def gatlingOssVersion = '3.9.5'
+def gatlingGrpcVersion = '0.17.0'
+
+configurations {
+    gatlingGrpcRt
 }
 
 dependencies {
     gatlingImplementation project(':core')
+
+    // --- gRPC simulation classpath (Gatling 3.9.5, isolated from the 3.15 one above) ---
+    gatlingGrpcRt "io.gatling.highcharts:gatling-charts-highcharts:${gatlingOssVersion}"
+    gatlingGrpcRt "com.github.phisgr:gatling-grpc:${gatlingGrpcVersion}"
+    gatlingGrpcRt 'org.scala-lang:scala-library:2.13.12'
+    // Proto stub + MessagePack Codec from :core; block the Gatling 3.15 artifacts it exports.
+    gatlingGrpcRt(project(':core')) {
+        exclude group: 'io.gatling'
+        exclude group: 'io.gatling.highcharts'
+    }
+}
+
+sourceSets {
+    gatlingGrpc {
+        scala.srcDirs = ['src/gatlingGrpc/scala']
+        java.srcDirs = []
+        // Own resources first (logback), then the shared game.yml / sla-thresholds.yml that
+        // SlaConfigLoader reads off the classpath.
+        resources.srcDirs = ['src/gatlingGrpc/resources', 'src/gatling/resources']
+        compileClasspath = configurations.gatlingGrpcRt
+        runtimeClasspath = output + configurations.gatlingGrpcRt
+    }
 }
 
 gatling {
@@ -60,5 +99,38 @@ SIMULATIONS.each { alias, fqcn ->
             if (v != null) fwd[name] = v
         }
         systemProperties = fwd
+    }
+}
+
+// gRPC simulation — Gatling 3.9.5, launched directly so the io.gatling.gradle plugin (pinned to
+// 3.15 for this module's REST tasks above) never sees this classpath. Writes into the same
+// reports dir so scripts/run-variant.sh picks the run up unchanged.
+def GRPC_FORWARDED_PROPS = [
+    'users', 'durationMinutes', 'rampMinutes', 'paceSec',
+    'requestRate', 'eventCount', 'grpcHost', 'grpcPort', 'bet',
+]
+
+tasks.register('grpc', JavaExec) {
+    group = 'gatling'
+    description = 'Run grpc simulation (com.rgp.loadtest.silkroad.grpc.SilkroadGrpcSimulation)'
+    dependsOn tasks.named('gatlingGrpcClasses')
+    classpath = sourceSets.gatlingGrpc.runtimeClasspath
+    mainClass = 'io.gatling.app.Gatling'
+    args '-s', 'com.rgp.loadtest.silkroad.grpc.SilkroadGrpcSimulation',
+         '-rf', layout.buildDirectory.dir('reports/gatling').get().asFile.absolutePath
+    jvmArgs = [
+        '-server',
+        '-Xmx2G',
+        '--add-opens=java.base/java.lang=ALL-UNNAMED',
+        '--add-opens=java.base/java.util=ALL-UNNAMED',
+        '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+    ]
+    outputs.upToDateWhen { false }
+    doFirst {
+        systemProperty 'gameName', project.name
+        GRPC_FORWARDED_PROPS.each { name ->
+            def v = System.getProperty(name)
+            if (v != null) systemProperty(name, v)
+        }
     }
 }

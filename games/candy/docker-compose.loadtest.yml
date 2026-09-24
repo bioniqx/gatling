@@ -1,0 +1,63 @@
+# Local SUT for rgp-game-load-test: Candy Frenzy + its own Mongo/Redis.
+# Copy into the be-candy-frenzy repo root, then: docker compose -f docker-compose.loadtest.yml up -d --build
+# Host HTTP port defaults to 3012; set HTTP_PORT=3013 if another game already holds 3012.
+name: candy-loadtest
+
+services:
+  game-candy-frenzy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: game-candy-frenzy:latest
+    container_name: game-candy-frenzy
+    mem_limit: 768m
+    memswap_limit: 768m
+    env_file:
+      - .env.staging
+    environment:
+      JVM_OPTS: "-Xms128m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      # Health probe is /health with no context-path (matches the load-test harness default).
+      SERVER_SERVLET_CONTEXT_PATH: ""
+      MONGO_URI: mongodb://mongo:27017/candy-frenzy
+      MONGO_DB: candy-frenzy
+      REDIS_HOST: redis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REDIS_DATABASE: "0"
+      # http gateway + disabled = HttpWalletAdapter short-circuits to a mocked balance, no
+      # network calls — no Luigi/auth-service needed locally.
+      WALLET_GATEWAY: http
+      WALLET_ENABLED: "false"
+      # No ZMQ subscriber locally; PUB sockets connect and drop messages.
+      ZMQ_PUBLISHER_ADDRESS: tcp://127.0.0.1:10004
+      ZMQ_INTERNAL_PUBLISHER_ADDRESS: tcp://127.0.0.1:11004
+    ports:
+      - "${HTTP_PORT:-3012}:8080"
+      - "9098:9098"
+    logging:
+      driver: json-file
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7-jammy
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
